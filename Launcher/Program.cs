@@ -50,7 +50,7 @@ namespace QuantConnect.Lean.Launcher
             if (OS.IsWindows)
             {
                 Console.OutputEncoding = System.Text.Encoding.UTF8;
-                var hello = "hey!";
+                var hello = "hey! Can you change?";
             }
 
             // expect first argument to be config file name
