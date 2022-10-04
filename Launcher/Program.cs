@@ -114,6 +114,21 @@ namespace QuantConnect.Lean.Launcher
             {
                 var algorithmStatus = algorithmManager?.State ?? AlgorithmStatus.DeployError;
 
+                if (algorithmStatus == AlgorithmStatus.Completed)
+                {
+                    var stratName = Config.Get("algorithm-type-name");
+
+                    var argas = new string[]
+                    {
+                        "--backtest-data-source-file", $" ../../../Debug/{stratName}.json",
+                        "--report-destination", $" ../../../.../../Debug/{stratName}.html",
+                        "--strategy-description","Running my first Strategies report under AdCss.QC algortihm"
+                    };
+
+                    QuantConnect.Report.Program.Main(argas);
+                }
+
+
                 Exit(algorithmStatus != AlgorithmStatus.Completed ? 1 : 0);
             }
         }

@@ -10,8 +10,12 @@ using QuantConnect.Data;
 using QuantConnect.Indicators;
 using QuantConnect.Interfaces;
 using QuantConnect.Orders;
+using QuantConnect.Interfaces;
+using QuantConnect.Algorithm;
+using QuantConnect;
 
-namespace QuantConnect.Algorithm.CSharp
+
+namespace AdCss.QC.Strategies
 {
     public class ci_TrendFollowingStrategies : QCAlgorithm, IRegressionAlgorithmDefinition
     {
@@ -163,5 +167,9 @@ namespace QuantConnect.Algorithm.CSharp
         { "Rolling Averaged Population Magnitude", "0%" },
         { "OrderListHash", "6cc69218edd7bd461678b9ee0c575db5" }
     };
+
+        public long DataPoints => throw new NotImplementedException();
+
+        public int AlgorithmHistoryDataPoints => throw new NotImplementedException();
     }
 }

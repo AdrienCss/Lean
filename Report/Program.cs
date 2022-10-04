@@ -1,4 +1,4 @@
-﻿/*
+/*
  * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
  * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
  *
@@ -27,9 +27,9 @@ namespace QuantConnect.Report
     /// <summary>
     /// Lean Report creates a PDF strategy summary from the backtest and live json objects.
     /// </summary>
-    class Program
+    public class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             // Parse report arguments and merge with config to use in report creator:
             if (args.Length > 0)
