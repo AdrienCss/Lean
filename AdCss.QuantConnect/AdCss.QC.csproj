@@ -13,4 +13,9 @@
     <ProjectReference Include="..\Indicators\QuantConnect.Indicators.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="CsvHelper" Version="28.0.1" />
+    <PackageReference Include="YahooFinanceApi" Version="2.1.2" />
+  </ItemGroup>
+
 </Project>
