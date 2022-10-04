@@ -6,8 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using AC.Extensions;
-using Ciam.Extensions;
 using QLNet;
 using QuantConnect.Brokerages;
 using QuantConnect.Data;
@@ -16,8 +14,15 @@ using QuantConnect.Interfaces;
 using QuantConnect.Orders;
 using QuantConnect.Orders.Fees;
 using QuantConnect.Securities;
+using QuantConnect.Algorithm.Framework;
+using QuantConnect.Indicators;
+using QuantConnect;
+using AdCss.QC.Csv;
+using AdCss.QC.Data;
+using QuantConnect.Algorithm;
+using QuantConnect;
 
-namespace QuantConnect.Algorithm.CSharp
+namespace AdCss.QC.Strategies
 {
     public class AC_FirstStrategy : QCAlgorithm, IRegressionAlgorithmDefinition
     {
@@ -73,7 +78,6 @@ namespace QuantConnect.Algorithm.CSharp
             {
                 SetHoldings("ENGI.PA", 0.5);  
             }
-
 
 
             #region old
@@ -180,13 +184,7 @@ namespace QuantConnect.Algorithm.CSharp
             }
         }
 
-        public void printTamere(string s)
-        {
-            Console.WriteLine(s);
-        }
-
-
-
+    
 
         /// <summary>
         /// This is used by the regression test system to indicate if the open source Lean repository has the required data to run this algorithm.
@@ -196,7 +194,7 @@ namespace QuantConnect.Algorithm.CSharp
         /// <summary>
         /// This is used by the regression test system to indicate which languages this algorithm is written in.
         /// </summary>
-        public Language[] Languages { get; } = { Language.CSharp, Language.Python };
+        public Language[] Languages { get; } = { Language.CSharp };
 
         /// <summary>
         /// This is used by the regression test system to indicate what the expected statistics are from running the algorithm
@@ -246,5 +244,9 @@ namespace QuantConnect.Algorithm.CSharp
         { "Rolling Averaged Population Magnitude", "0%" },
         { "OrderListHash", "6cc69218edd7bd461678b9ee0c575db5" }
     };
+
+        public long DataPoints { get; }
+
+        public int AlgorithmHistoryDataPoints { get; }
     }
 }
