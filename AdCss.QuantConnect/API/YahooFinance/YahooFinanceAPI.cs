@@ -35,7 +35,6 @@ namespace AdCss.QC.API.YahooFinance
                 {
                     // CHECK THAT YOUR API KEY HAVE NOT BEEN CHANGED;
                     // IT HAPPEN SOMETIMES.
-
                     Log.Trace($" Exporting {YahooTicker} using Yahoo Finance...");
 
                     httpClient.BaseAddress = new Uri("https://yfapi.net/");
