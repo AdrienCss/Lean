@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using Newtonsoft.Json;
 using QuantConnect.Configuration;
@@ -86,7 +87,13 @@ namespace QuantConnect.Report
             {
                 Console.Write(html);
             }
-            
+
+            // Opening report
+            var nameFile = args[3];
+            var namefile = Path.GetFileName(nameFile);
+            Process.Start(new ProcessStartInfo(namefile) { UseShellExecute = true });
+
+            Log.Trace("QuantConnect.Report.Main(): Completed.");
             Log.Trace("QuantConnect.Report.Main(): Completed.");
 
             if (!Console.IsInputRedirected)

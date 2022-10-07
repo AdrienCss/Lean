@@ -24,7 +24,7 @@ namespace AdCss.QC.Csv
     {
         public static Dictionary<string, bool> IsCheck = new Dictionary<string, bool>();
 
-        public static string GetFileName(string ticker, IdentifierType idType, string path)
+        public static string RequestDataAndGetFileName(string ticker, IdentifierType idType, string path)
         {
             if (IsCheck.ContainsKey(ticker))
                 return ticker;
@@ -121,7 +121,7 @@ namespace AdCss.QC.Csv
                 {
                     csv.WriteRecords(result.Result);
                 }
-                Log.Trace($"__________________ IMPORTING PRICES : {identifierProvider} has been imported for the first time. From {result.Result.Min(i => i.Date).ToString("d")} to {result.Result.Min(i => i.Date).ToString("d")}");
+                Log.Trace($" \n IMPORTING PRICES : {identifierProvider} . From {result.Result.Min(i => i.Date).ToString("d")} to {result.Result.Max(i => i.Date).ToString("d")}");
             }
             else
             {

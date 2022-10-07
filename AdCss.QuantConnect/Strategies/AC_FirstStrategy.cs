@@ -41,11 +41,10 @@ namespace AdCss.QC.Strategies
         public override void Initialize()
         {
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-            SetStartDate(2018, 01, 01); //Set Start Date
+            SetStartDate(2015, 01, 01); //Set Start Date
             var endDate = new DateTime(2022, 08, 20);
             SetEndDate(endDate);
             SetCash(1_000_000); //Set Strategy Cash
-
 
             DataTickers = CsvGenerator.GetIndexComposition("^FCHI"); // Get securities of CAC40
             DataTickers.Add("^FCHI"); // CAC40
