@@ -53,6 +53,7 @@ namespace QuantConnect.Python
             if (!_isInitialized)
             {
                 Log.Trace("PythonInitializer.Initialize(): start...");
+                PythonEngine.PythonHome = @"C:\Users\adrie\anaconda3\envs\PythonNet"; // Added myself PythonEngine
                 PythonEngine.Initialize();
 
                 if (beginAllowThreads)

@@ -26,7 +26,7 @@ namespace AdCss.QC.API.YahooFinance
         public static async Task<List<CsvPriceData>> GetHistoPrice(string YahooTicker,  Eperiod periodRange, DateTime? startDate = null)
         {
             var historicalPrice = new List<CsvPriceData>();
-
+            var errorMessage= string.Empty;
             //YahooTicker = YahooTicker.Replace("^", "5E"); // FOr index purpose
 
             try
@@ -38,17 +38,18 @@ namespace AdCss.QC.API.YahooFinance
                     Log.Trace($" Exporting {YahooTicker} using Yahoo Finance...");
 
                     httpClient.BaseAddress = new Uri("https://yfapi.net/");
-                    httpClient.DefaultRequestHeaders.Add("X-API-KEY", "rnXK2QqMQbbmlWGUzTY297hncjflWFA9GOe5sT6j");
+                    httpClient.DefaultRequestHeaders.Add("X-API-KEY", "kvAlFwfm1waBTMln5KAPv4kDH1UPT2Qr2bzmjpza");
 
                     string period = periodRange.ToString().Replace('_', ' ').Trim(' ');
 
                     var responseHistoPrice = await httpClient.GetAsync($"/v8/finance/chart/{YahooTicker}?range={period}&interval=1d");
-                    var responseBody = responseHistoPrice.Content.ReadAsStringAsync();
+                   var  responseBody = responseHistoPrice.Content.ReadAsStringAsync();
 
 
                     Task.WaitAll(responseBody);
 
                     var data = (JObject)JsonConvert.DeserializeObject(responseBody.Result);
+                    errorMessage = data.ToString();
 
                     var currency = data.SelectToken("chart.result[0].meta.currency").Value<string>();
                     var exchangeName = data.SelectToken("chart.result[0].meta.exchangeName").Value<string>();
@@ -95,7 +96,7 @@ namespace AdCss.QC.API.YahooFinance
             }
             catch (Exception e)
             {
-                Log.Trace($"\n \n Ooops there is an error regarding Yahoo Finance API^... -- {YahooTicker} -- : \n");
+                Log.Trace($"\n \n Ooops there is an error regarding Yahoo Finance API... -- {YahooTicker} -- :\n  {errorMessage}");
                 Log.Trace(e.Message);
                 throw;
             }
