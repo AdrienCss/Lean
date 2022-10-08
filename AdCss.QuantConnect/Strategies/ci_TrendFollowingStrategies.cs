@@ -13,7 +13,8 @@ using QuantConnect.Orders;
 using QuantConnect.Interfaces;
 using QuantConnect.Algorithm;
 using QuantConnect;
-
+using AdCss.QC.Csv;
+using AdCss.QC.Data;
 
 namespace AdCss.QC.Strategies
 {
@@ -28,21 +29,47 @@ namespace AdCss.QC.Strategies
 
         public override void Initialize()
         {
+           
+            
+
+
             SetStartDate(2010, 8, 1);
             SetEndDate(2022, 01, 1);
             SetCash(1000000);
 
-            AddEquity("spi", Resolution.Daily);
-            AddEquity("aapl", Resolution.Daily);
 
-            // S&P 500 ETF
-            aaplMomentum = MOMP("aapl", 50, Resolution.Daily);
-            // Vanguard Total Bond Market
-            spidMomentum = MOMP("spi", 50, Resolution.Daily);
 
-            SetBenchmark("spy");
+
+
+           var DataTickers = CsvGenerator.GetIndexComposition("^FCHI"); // Get securities of CAC40
+            DataTickers.Add("^FCHI"); // CAC40
+
+            // "^STOXX50E" Eurostoxx <= à ajouter pour les prochaines fois
+            //     DataTickers = new HashSet<string>() { "OR.PA" };
+
+            foreach (var ticker in DataTickers)
+                AddData<PriceData>(ticker, Resolution.Daily);
+
+         //   var cac40 = AddData<PriceData>("^FCHI", Resolution.Daily);
+          //  SetBenchmark(x => cac40.Price);
+
+
+
+
+
+
+            //AddEquity("spi", Resolution.Daily);
+            //AddEquity("aapl", Resolution.Daily);
+
+            //// S&P 500 ETF
+            //aaplMomentum = MOMP("aapl", 50, Resolution.Daily);
+
+            //// Vanguard Total Bond Market
+            //spidMomentum = MOMP("spi", 50, Resolution.Daily);
+
+          //  SetBenchmark("spy");
             
-            SetWarmUp(50);
+          //  SetWarmUp(50);
         }
 
         /// <summary>

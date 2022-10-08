@@ -11,6 +11,10 @@ using QuantConnect.Data;
 using QuantConnect.Data.Market;
 using AdCss.QC;
 using AdCss.QC.Csv;
+using QuantConnect.Orders;
+using QuantConnect.Algorithm;
+using QuantConnect.Data.Fundamental;
+using QuantConnect.Logging;
 
 
 namespace AdCss.QC.Data
@@ -24,12 +28,11 @@ namespace AdCss.QC.Data
 
         public override SubscriptionDataSource GetSource(SubscriptionDataConfig config, DateTime date, bool isLiveMode)
         {
-            var fileName = CsvGenerator.RequestDataAndGetFileName(config.Symbol.Value, IdentifierType.YahooFinance, Globals.DataFolder);
+      //      var fileName = CsvGenerator.RequestDataAndGetFileName(config.Symbol.Value, IdentifierType.YahooFinance, Globals.DataFolder);
 
-            var combine = Path.Combine(Globals.DataFolder, "equity", "AdCss", "Daily", $"{fileName}.csv");
+            var combine = Path.Combine(Globals.DataFolder, "equity", "AdCss", "Daily", $"{config.Symbol.Value}.csv");
             return new SubscriptionDataSource(combine, SubscriptionTransportMedium.LocalFile);
         }
-
 
         public override BaseData Reader(SubscriptionDataConfig config, string line, DateTime date, bool isLiveMode)
         {

@@ -117,15 +117,15 @@ namespace QuantConnect.Lean.Launcher
                 if (algorithmStatus == AlgorithmStatus.Completed)
                 {
                     var stratName = Config.Get("algorithm-type-name");
-
+                    var strategyDescription = Config.Get("strategy-description");
                     var argas = new string[]
                     {
                         "--backtest-data-source-file", $" ../../../Debug/{stratName}.json",
                         "--report-destination", $" ../../../.../../Debug/{stratName}.html",
-                        "--strategy-description","Running my first Strategies report under AdCss.QC algortihm"
+                        "--strategy-description",strategyDescription
                     };
 
-                    QuantConnect.Report.Program.Main(argas);
+                   Report.Program.Main(argas);
                 }
 
 

@@ -26,36 +26,45 @@ namespace AdCss.QC.Csv
 
         public static string RequestDataAndGetFileName(string ticker, IdentifierType idType, string path)
         {
-            if (IsCheck.ContainsKey(ticker))
-                return ticker;
-
-            var identifierProvider = String.Empty;
-
-            if (idType == IdentifierType.Bloomberg)
+            try
             {
-                if (ticker != "SX5E")
-                    identifierProvider = ticker.Replace("_", " ") + " Equity";
+             
+
+                var identifierProvider = String.Empty;
+
+                if (idType == IdentifierType.Bloomberg)
+                {
+                    if (ticker != "SX5E")
+                        identifierProvider = ticker.Replace("_", " ") + " Equity";
+                    else
+                        identifierProvider = ticker + " INDEX";
+                }
                 else
-                    identifierProvider = ticker + " INDEX";
+                {
+                    identifierProvider = ticker;
+                }
+
+
+                var pathFileHistoryPrice = Path.Combine(path, "equity", "AdCss", "Daily", $"{ticker}.csv");
+
+                if (!File.Exists(pathFileHistoryPrice))
+                    ExportData(identifierProvider, pathFileHistoryPrice);
+                else
+                {   // to be reimported because of adjusted prices.
+                    //UpdateData(identifierProvider, pathFileHistoryPrice);
+                }
+
+            //    IsCheck[ticker] = true;
+                return ticker;
             }
-            else
+
+            catch (Exception e)
             {
-                identifierProvider = ticker;
+
             }
-
-
-            var pathFileHistoryPrice = Path.Combine(path, "equity", "AdCss", "Daily", $"{ticker}.csv");
-
-            if (!File.Exists(pathFileHistoryPrice))
-                ExportData(identifierProvider, pathFileHistoryPrice);
-            else
-            {   // to be reimported because of adjusted prices.
-                //UpdateData(identifierProvider, pathFileHistoryPrice);
-            }
-
-            IsCheck[ticker] = true;
-            return ticker;
+            return null;
         }
+         
 
         private static void UpdateData(string identifierProvider, string path)
         {
