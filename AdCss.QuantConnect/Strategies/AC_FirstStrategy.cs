@@ -21,6 +21,7 @@ using AdCss.QC.Csv;
 using AdCss.QC.Data;
 using QuantConnect.Algorithm;
 using QuantConnect;
+using QuantConnect.Util;
 
 namespace AdCss.QC.Strategies
 {
@@ -40,17 +41,20 @@ namespace AdCss.QC.Strategies
 
         public override void Initialize()
         {
+          //  Utils.Utils.WhriteStrategyDescriptionInConfigFile("Making my first Ever strategy using best Lean extension.");
+
+
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             SetStartDate(2015, 01, 01); //Set Start Date
-            var endDate = new DateTime(2022, 08, 20);
+            var endDate = DateTime.Now;
             SetEndDate(endDate);
             SetCash(1_000_000); //Set Strategy Cash
 
             DataTickers = CsvGenerator.GetIndexComposition("^FCHI"); // Get securities of CAC40
             DataTickers.Add("^FCHI"); // CAC40
 
-            // "^STOXX50E" Eurostoxx <= à ajouter pour les prochaines fois
-
+            //"^STOXX50E" Eurostoxx <= à ajouter pour les prochaines fois
+           DataTickers = new HashSet<string>() { "OR.PA" };
 
             foreach (var ticker in DataTickers)
                 AddData<PriceData>(ticker, Resolution.Daily);
@@ -67,15 +71,21 @@ namespace AdCss.QC.Strategies
         /// <param name="data">Slice object keyed by symbol containing the stock data</param>
         public override void OnData(Slice data)
         {
+            //Going to be written in final report
+
             var date = Time.Date; // Fais gaffe mirey les date sont affiché en mm/dd/yyyy
             var portfolio8 = Portfolio;
             var securities = Securities;
 
+            var allSecuritiesAvailable = Securities.ToDictionary(i => i.Key, i => i.Value.Close);
+
+            var CurrentPosition = Portfolio.Securities.Where(i => i.Value.HoldStock == true).ToList();
 
 
             if (!Portfolio.Invested)
             {
-                SetHoldings("ENGI.PA", 0.5);  
+                SetHoldings("ENGI.PA", 0.5);
+                SetHoldings("OR.PA", 0.5);
             }
 
 

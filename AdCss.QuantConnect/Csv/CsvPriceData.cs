@@ -6,6 +6,7 @@ namespace AdCss.QC.Csv
 
     public class CsvPriceData // Used to export Data in CSV
     {
+       
         [Name("Date")][Format("dd/MM/yyyy")] public DateTime Date { get; set; }
 
         [Name("CompanyName")] public string CompanyName { get; set; }

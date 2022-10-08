@@ -8,8 +8,11 @@
 
   "environment": "backtesting", // "live-paper", "backtesting", "live-interactive", "live-interactive-iqfeed"
 
+
+  "strategy-description": "To be filled using Utils Class",
+
   // algorithm class selector
-  "algorithm-type-name": "AC_FirstStrategy",
+  "algorithm-type-name": "ci_TrendFollowingStrategies",
 
   // Algorithm language selector - options CSharp, Python
   "algorithm-language": "CSharp",
