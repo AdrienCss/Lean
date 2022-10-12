@@ -54,7 +54,7 @@ namespace AdCss.QC.Strategies
             DataTickers.Add("^FCHI"); // CAC40
 
             //"^STOXX50E" Eurostoxx <= à ajouter pour les prochaines fois
-           DataTickers = new HashSet<string>() { "OR.PA" };
+      //     DataTickers = new HashSet<string>() { "OR.PA" };
 
             foreach (var ticker in DataTickers)
                 AddData<PriceData>(ticker, Resolution.Daily);
