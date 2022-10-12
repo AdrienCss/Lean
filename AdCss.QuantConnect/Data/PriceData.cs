@@ -28,9 +28,9 @@ namespace AdCss.QC.Data
 
         public override SubscriptionDataSource GetSource(SubscriptionDataConfig config, DateTime date, bool isLiveMode)
         {
-      //      var fileName = CsvGenerator.RequestDataAndGetFileName(config.Symbol.Value, IdentifierType.YahooFinance, Globals.DataFolder);
+           var fileName = CsvGenerator.RequestDataAndGetFileName(config.Symbol.Value, IdentifierType.YahooFinance, Globals.DataFolder);
 
-            var combine = Path.Combine(Globals.DataFolder, "equity", "AdCss", "Daily", $"{config.Symbol.Value}.csv");
+            var combine = Path.Combine(Globals.DataFolder, "equity", "AdCss", "Daily", $"{fileName}.csv");
             return new SubscriptionDataSource(combine, SubscriptionTransportMedium.LocalFile);
         }
 

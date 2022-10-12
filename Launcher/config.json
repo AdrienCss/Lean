@@ -12,7 +12,7 @@
   "strategy-description": "To be filled using Utils Class",
 
   // algorithm class selector
-  "algorithm-type-name": "ci_TrendFollowingStrategies",
+  "algorithm-type-name": "AC_FirstStrategy",
 
   // Algorithm language selector - options CSharp, Python
   "algorithm-language": "CSharp",
