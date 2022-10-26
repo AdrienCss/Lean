@@ -29,10 +29,6 @@ namespace AdCss.QC.Strategies
 
         public override void Initialize()
         {
-           
-            
-
-
             SetStartDate(2010, 8, 1);
             SetEndDate(2022, 01, 1);
             SetCash(1000000);

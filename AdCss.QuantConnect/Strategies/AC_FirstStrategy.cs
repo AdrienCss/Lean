@@ -22,6 +22,8 @@ using AdCss.QC.Data;
 using QuantConnect.Algorithm;
 using QuantConnect;
 using QuantConnect.Util;
+using AdCss.QC.Utils;
+using AdCss.QC.Utils.Model;
 
 namespace AdCss.QC.Strategies
 {
@@ -32,7 +34,7 @@ namespace AdCss.QC.Strategies
         /// </summary>
         ///
         HashSet<string> DataTickers;
-
+        public List<compoDaily> IndexComposition;
         public static string StrategyDescription { get; }
 
 
@@ -41,7 +43,7 @@ namespace AdCss.QC.Strategies
 
         public override void Initialize()
         {
-          //  Utils.Utils.WhriteStrategyDescriptionInConfigFile("Making my first Ever strategy using best Lean extension.");
+           Utils.Utils.WhriteStrategyDescriptionInConfigFile("Making my first Ever strategy using best Lean extension.");
 
 
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -50,7 +52,21 @@ namespace AdCss.QC.Strategies
             SetEndDate(endDate);
             SetCash(1_000_000); //Set Strategy Cash
 
-            DataTickers = CsvGenerator.GetIndexComposition("^FCHI"); // Get securities of CAC40
+
+            IndexComposition = jsonDeserializer.GetSX5EComposition();
+
+            var componmentTicker = new List<string>();
+
+            foreach ( var dailComp in IndexComposition)
+            {
+                componmentTicker.AddRange(dailComp.GetCompoTickersOnly(true));
+            }
+
+            DataTickers = componmentTicker.Distinct().ToHashSet();
+
+
+
+
             DataTickers.Add("^FCHI"); // CAC40
 
             //"^STOXX50E" Eurostoxx <= à ajouter pour les prochaines fois

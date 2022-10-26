@@ -8,7 +8,6 @@ namespace AdCss.QC.Csv
     {
        
         [Name("Date")][Format("dd/MM/yyyy")] public DateTime Date { get; set; }
-
         [Name("CompanyName")] public string CompanyName { get; set; }
         [Name("Open")] public double? pOpen { get; set; }
         [Name("High")] public double? pHigh { get; set; }
