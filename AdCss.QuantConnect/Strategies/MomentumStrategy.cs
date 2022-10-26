@@ -27,7 +27,7 @@ using AdCss.QC.Utils.Model;
 
 namespace AdCss.QC.Strategies
 {
-    public class AC_FirstStrategy : QCAlgorithm, IRegressionAlgorithmDefinition
+    public class MomentumStrategy : QCAlgorithm, IRegressionAlgorithmDefinition
     {
         /// <summary>
         /// Initialise the data and resolution required, as well as the cash and start-end dates for your algorithm. All algorithms must initialized.
@@ -44,7 +44,6 @@ namespace AdCss.QC.Strategies
         public override void Initialize()
         {
            Utils.Utils.WhriteStrategyDescriptionInConfigFile("Making my first Ever strategy using best Lean extension.");
-
 
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             SetStartDate(2015, 01, 01); //Set Start Date
