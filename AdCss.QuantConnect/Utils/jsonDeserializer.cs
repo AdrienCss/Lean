@@ -16,7 +16,7 @@ namespace AdCss.QC.Utils
     {
         public static List<compoDaily> GetSX5EComposition()
         {
-            var dataFolder  = Path.Combine(Globals.DataFolder, "index", "AdCss", "Members");
+            var dataFolder  = Path.Combine(Globals.DataFolder, "index", "AdCss", "Members", "SX5E_memb");
             var compoList = new List<compoDaily>();
 
             foreach (var jsonFile in Directory.GetFiles(dataFolder))
