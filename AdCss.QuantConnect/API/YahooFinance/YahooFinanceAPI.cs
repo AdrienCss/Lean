@@ -31,6 +31,7 @@ namespace AdCss.QC.API.YahooFinance
 
             try
             {
+
                 using (var httpClient = new HttpClient()) // go to https://financeapi.net
                 {
                     // CHECK THAT YOUR API KEY HAVE NOT BEEN CHANGED;
