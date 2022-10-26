@@ -16,7 +16,6 @@
 
 using System;
 using System.Threading;
-using Python.Runtime;
 using QuantConnect.Configuration;
 using QuantConnect.Lean.Engine;
 using QuantConnect.Logging;
@@ -106,6 +105,8 @@ namespace QuantConnect.Lean.Launcher
 
                 leanEngineSystemHandlers.LeanManager.Initialize(leanEngineSystemHandlers, leanEngineAlgorithmHandlers, job, algorithmManager);
 
+                OS.Initialize();
+
                 var engine = new Engine.Engine(leanEngineSystemHandlers, leanEngineAlgorithmHandlers, liveMode);
                 engine.Run(job, algorithmManager, assemblyPath, WorkerThread.Instance);
             }
@@ -152,7 +153,7 @@ namespace QuantConnect.Lean.Launcher
             leanEngineSystemHandlers.DisposeSafely();
             leanEngineAlgorithmHandlers.DisposeSafely();
             Log.LogHandler.DisposeSafely();
-            OS.CpuPerformanceCounter.DisposeSafely();
+            OS.Dispose();
 
             PythonInitializer.Shutdown();
 
