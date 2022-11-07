@@ -43,6 +43,7 @@ namespace AdCss.QC.Strategies
 
         public override void Initialize()
         {
+
            Utils.Utils.WhriteStrategyDescriptionInConfigFile("Making my first Ever strategy using best Lean extension.");
 
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
