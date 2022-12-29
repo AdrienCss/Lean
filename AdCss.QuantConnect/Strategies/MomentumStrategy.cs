@@ -37,13 +37,10 @@ namespace AdCss.QC.Strategies
         public List<compoDaily> IndexComposition;
         public static string StrategyDescription { get; }
 
-
-
         //private Dictionary<string, Dictionary<DateTime, SMAP_Data>> Smap_Score;
 
         public override void Initialize()
         {
-
            Utils.Utils.WhriteStrategyDescriptionInConfigFile("Making my first Ever strategy using best Lean extension.");
 
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -63,10 +60,6 @@ namespace AdCss.QC.Strategies
             }
 
             DataTickers = componmentTicker.Distinct().ToHashSet();
-
-
-
-
             DataTickers.Add("^FCHI"); // CAC40
 
             //"^STOXX50E" Eurostoxx <= à ajouter pour les prochaines fois

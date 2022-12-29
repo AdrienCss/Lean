@@ -11,7 +11,6 @@ namespace AdCss.QC.Utils
 {
     public static class Utils
     {
-
         public static void WhriteStrategyDescriptionInConfigFile(string strategyDescription)
         {
             Config.Set("strategy-description", strategyDescription);

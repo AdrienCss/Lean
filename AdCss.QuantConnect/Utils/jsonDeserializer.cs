@@ -23,7 +23,6 @@ namespace AdCss.QC.Utils
             {
                 var compo = File.ReadAllText(jsonFile);
                 var yearlyComp = JsonSerializer.Deserialize<List<compoDaily>>(compo);
-           //     yearlyComp.GetYahooTicker();
                 compoList.AddRange(yearlyComp);
             }
             return compoList;
