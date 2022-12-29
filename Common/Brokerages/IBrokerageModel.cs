@@ -240,6 +240,12 @@ namespace QuantConnect.Brokerages
 
                 case BrokerageName.FTXUS:
                     return new FTXUSBrokerageModel(accountType);
+                
+                case BrokerageName.Wolverine:
+                    return new WolverineBrokerageModel(accountType);
+
+                case BrokerageName.TDAmeritrade:
+                    return new TDAmeritradeBrokerageModel(accountType);
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(brokerage), brokerage, null);
@@ -313,6 +319,12 @@ namespace QuantConnect.Brokerages
 
                 case FTXBrokerageModel _:
                     return BrokerageName.FTX;
+
+                case WolverineBrokerageModel _:
+                    return BrokerageName.Wolverine;
+
+                case TDAmeritradeBrokerageModel _:
+                    return BrokerageName.TDAmeritrade;
 
                 case DefaultBrokerageModel _:
                     return BrokerageName.Default;

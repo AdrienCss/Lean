@@ -94,6 +94,7 @@
   "ib-trading-mode": "paper",
   "ib-enable-delayed-streaming-data": false,
   "ib-version": "974",
+  "ib-weekly-restart-utc-time": "22:00:00",
 
   // tradier configuration
   "tradier-environment": "paper",
@@ -154,6 +155,20 @@
   "atreyu-client-id": "",
   "atreyu-broker-mpid": "",
   "atreyu-locate-rqd": "",
+
+  // wolverine configuration
+  "wolverine-host": "",
+  "wolverine-port": "",
+  "wolverine-account": "",
+  "wolverine-sender-comp-id": "",
+  "wolverine-target-comp-id": "",
+  "wolverine-on-behalf-of-comp-id": "",
+  "wolverine-log-fix-messages": false,
+
+  // TDAmeritrade configuration
+  "tdameritrade-account-number": "",
+  "tdameritrade-api-key": "",
+  "tdameritrade-access-token": "",
 
   // Trading Technologies configuration
   "tt-user-name": "",
@@ -322,7 +337,7 @@
       "data-feed-handler": "QuantConnect.Lean.Engine.DataFeeds.LiveTradingDataFeed",
       "real-time-handler": "QuantConnect.Lean.Engine.RealTime.LiveTradingRealTimeHandler",
       "transaction-handler": "QuantConnect.Lean.Engine.TransactionHandlers.BrokerageTransactionHandler",
-      "history-provider": [ "TradierBrokerage", "SubscriptionDataReaderHistoryProvider" ]
+      "history-provider": [ "BrokerageHistoryProvider", "SubscriptionDataReaderHistoryProvider" ]
     },
 
     // defines the 'live-interactive' environment
@@ -526,6 +541,33 @@
       "real-time-handler": "QuantConnect.Lean.Engine.RealTime.LiveTradingRealTimeHandler",
       "transaction-handler": "QuantConnect.Lean.Engine.TransactionHandlers.BrokerageTransactionHandler",
       "history-provider": [ "BrokerageHistoryProvider", "SubscriptionDataReaderHistoryProvider" ]
+    },
+
+    "live-wolverine": {
+      "live-mode": true,
+
+      // real brokerage implementations require the BrokerageTransactionHandler
+      "live-mode-brokerage": "WolverineBrokerage",
+      "history-provider": [ "SubscriptionDataReaderHistoryProvider" ],
+      "setup-handler": "QuantConnect.Lean.Engine.Setup.BrokerageSetupHandler",
+      "result-handler": "QuantConnect.Lean.Engine.Results.LiveTradingResultHandler",
+      "data-feed-handler": "QuantConnect.Lean.Engine.DataFeeds.LiveTradingDataFeed",
+      "real-time-handler": "QuantConnect.Lean.Engine.RealTime.LiveTradingRealTimeHandler",
+      "transaction-handler": "QuantConnect.Lean.Engine.TransactionHandlers.BrokerageTransactionHandler"
+    },
+
+    "live-tdameritrade": {
+      "live-mode": true,
+
+      // real brokerage implementations require the BrokerageTransactionHandler
+      "live-mode-brokerage": "TDAmeritradeBrokerage",
+      "history-provider": [ "BrokerageHistoryProvider", "SubscriptionDataReaderHistoryProvider" ],
+      "setup-handler": "QuantConnect.Lean.Engine.Setup.BrokerageSetupHandler",
+      "result-handler": "QuantConnect.Lean.Engine.Results.LiveTradingResultHandler",
+      "data-feed-handler": "QuantConnect.Lean.Engine.DataFeeds.LiveTradingDataFeed",
+      "real-time-handler": "QuantConnect.Lean.Engine.RealTime.LiveTradingRealTimeHandler",
+      "transaction-handler": "QuantConnect.Lean.Engine.TransactionHandlers.BrokerageTransactionHandler",
+      "data-queue-handler": [ "TDAmeritradeBrokerage" ]
     }
   }
 }
