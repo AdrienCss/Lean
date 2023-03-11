@@ -34,9 +34,6 @@ namespace AdCss.QC.Strategies
             SetCash(1000000);
 
 
-
-
-
            var DataTickers = CsvGenerator.GetIndexComposition("^FCHI"); // Get securities of CAC40
             DataTickers.Add("^FCHI"); // CAC40
 

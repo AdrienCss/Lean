@@ -49,18 +49,20 @@ namespace AdCss.QC.Strategies
             SetEndDate(endDate);
             SetCash(1_000_000); //Set Strategy Cash
 
+            //IndexComposition = jsonDeserializer.GetSX5EComposition();
 
-            IndexComposition = jsonDeserializer.GetSX5EComposition();
+            //var componmentTicker = new List<string>();
 
-            var componmentTicker = new List<string>();
+            //foreach ( var dailComp in IndexComposition)
+            //{
+            //    componmentTicker.AddRange(dailComp.GetCompoTickersOnly(true));
+            //}
 
-            foreach ( var dailComp in IndexComposition)
-            {
-                componmentTicker.AddRange(dailComp.GetCompoTickersOnly(true));
-            }
-
-            DataTickers = componmentTicker.Distinct().ToHashSet();
-            DataTickers.Add("^FCHI"); // CAC40
+            // DataTickers = componmentTicker.Distinct().ToHashSet();
+            DataTickers = new HashSet<string>();
+            DataTickers.Add("AC.PA");
+            DataTickers.Add("ACA.PA");
+           // DataTickers.Add("^FCHI"); // CAC40
 
             //"^STOXX50E" Eurostoxx <= à ajouter pour les prochaines fois
       //     DataTickers = new HashSet<string>() { "OR.PA" };
@@ -93,8 +95,8 @@ namespace AdCss.QC.Strategies
 
             if (!Portfolio.Invested)
             {
-                SetHoldings("ENGI.PA", 0.5);
-                SetHoldings("OR.PA", 0.5);
+                SetHoldings("AC.PA", 0.5);
+                SetHoldings("ACA.PA", 0.5);
             }
 
 
