@@ -22,6 +22,13 @@ namespace QuantConnect.Securities
     public static class Futures
     {
         /// <summary>
+        /// The maximum supported contract offset depth
+        /// </summary>
+        /// <remarks>Note this value is related to the continuous contract desired offset from the current front month.
+        /// For example, 0 (default) will use the front month, 1 will use the back month contract</remarks>
+        public static readonly int MaximumContractDepthOffset = 2;
+
+        /// <summary>
         /// Grains and Oilseeds group
         /// </summary>
         public static class Grains
@@ -189,6 +196,12 @@ namespace QuantConnect.Securities
             public const string BTC = "BTC";
 
             /// <summary>
+            /// Ether Futures
+            /// </summary>
+            /// <returns>The symbol</returns>
+            public const string ETH = "ETH";
+
+            /// <summary>
             /// Canadian Dollar/Japanese Yen Futures
             /// </summary>
             /// <returns>The symbol</returns>
@@ -307,18 +320,6 @@ namespace QuantConnect.Securities
             /// </summary>
             /// <returns>The symbol</returns>
             public const string MicroBTC = "MBT";
-
-            /// <summary>
-            /// BTIC on Micro Ether Futures
-            /// </summary>
-            /// <returns>The symbol</returns>
-            public const string BTICMicroEther = "MRB";
-
-            /// <summary>
-            /// BTIC on Micro Bitcoin Futures
-            /// </summary>
-            /// <returns>The symbol</returns>
-            public const string BTICMicroBTC = "MIB";
         }
 
         /// <summary>
@@ -982,12 +983,6 @@ namespace QuantConnect.Securities
             /// </summary>
             /// <returns>The symbol</returns>
             public const string BseSensex = "SENSEX";
-
-            /// <summary>
-            /// Hang Seng Index
-            /// </summary>
-            /// <returns>The symbol</returns>
-            public const string HangSeng = "HSI";
 
             /// <summary>
             /// Micro E-mini S&amp;P 500 Index Futures

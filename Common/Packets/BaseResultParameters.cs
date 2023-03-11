@@ -26,11 +26,6 @@ namespace QuantConnect.Packets
     public class BaseResultParameters
     {
         /// <summary>
-        /// Contains population averages scores over the life of the algorithm
-        /// </summary>
-        public AlphaRuntimeStatistics AlphaRuntimeStatistics { get; set; }
-
-        /// <summary>
         /// Trade profit and loss information since the last algorithm result packet
         /// </summary>
         public IDictionary<DateTime, decimal> ProfitLoss { get; set; }
@@ -59,6 +54,11 @@ namespace QuantConnect.Packets
         /// Runtime banner/updating statistics in the title banner of the live algorithm GUI.
         /// </summary>
         public IDictionary<string, string> RuntimeStatistics { get; set; }
+
+        /// <summary>
+        /// State information of the algorithm.
+        /// </summary>
+        public IDictionary<string, string> State { get; set; }
 
         /// <summary>
         /// The algorithm's configuration required for report generation

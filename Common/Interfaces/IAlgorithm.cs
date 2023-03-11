@@ -14,21 +14,22 @@
 */
 
 using System;
-using System.Collections.Generic;
 using NodaTime;
+using QuantConnect.Data;
+using QuantConnect.Orders;
+using QuantConnect.Storage;
 using QuantConnect.Benchmarks;
 using QuantConnect.Brokerages;
-using QuantConnect.Data;
-using QuantConnect.Data.UniverseSelection;
-using QuantConnect.Notifications;
-using QuantConnect.Orders;
 using QuantConnect.Scheduling;
 using QuantConnect.Securities;
+using QuantConnect.Notifications;
+using System.Collections.Generic;
 using System.Collections.Concurrent;
-using QuantConnect.Algorithm.Framework.Alphas;
 using QuantConnect.Securities.Future;
 using QuantConnect.Securities.Option;
-using QuantConnect.Storage;
+using QuantConnect.Data.UniverseSelection;
+using QuantConnect.Algorithm.Framework.Alphas;
+using QuantConnect.Algorithm.Framework.Alphas.Analysis;
 
 namespace QuantConnect.Interfaces
 {
@@ -331,6 +332,14 @@ namespace QuantConnect.Interfaces
         }
 
         /// <summary>
+        /// Gets the insight manager
+        /// </summary>
+        InsightManager Insights
+        {
+            get;
+        }
+
+        /// <summary>
         /// Gets the object store, used for persistence
         /// </summary>
         ObjectStore ObjectStore { get; }
@@ -355,6 +364,11 @@ namespace QuantConnect.Interfaces
         /// Called when the algorithm has completed initialization and warm up.
         /// </summary>
         void OnWarmupFinished();
+
+        /// <summary>
+        /// Gets a read-only dictionary with all current parameters
+        /// </summary>
+        IReadOnlyDictionary<string, string> GetParameters();
 
         /// <summary>
         /// Gets the parameter with the specified name. If a parameter with the specified name does not exist,

@@ -151,7 +151,8 @@ def getHistory(algorithm, symbol, start, resolution):
                 Assert.IsTrue(result2.Any(tick => tick.TickType == TickType.Trade));
                 Assert.IsTrue(result2.Any(tick => tick.TickType == TickType.Quote));
 
-                Assert.AreEqual(result.Count, result2.Count);
+                var resultTickCount = result.Sum(slice => slice.Ticks[Symbols.SPY].Count);
+                Assert.AreEqual(resultTickCount, result2.Count);
             }
             else
             {
@@ -498,6 +499,8 @@ def getTickHistory(algorithm, symbol, start, end):
             {
                 using (Py.GIL())
                 {
+                    PythonInitializer.Initialize();
+
                     var customDataType = PyModule.FromString("testModule",
                         @"
 from AlgorithmImports import *
@@ -1115,16 +1118,172 @@ def getOpenInterestHistory(algorithm, symbol, start, end, resolution):
             }
         }
 
-        [Test]
-        public void GetHistoryWithCustomData_CSharp()
+        [TestCase(Language.CSharp)]
+        [TestCase(Language.Python)]
+        public void GetHistoryWithCustomDataType(Language language)
         {
             var algorithm = GetAlgorithm(new DateTime(2013, 10, 8));
-            var symbol = algorithm.AddData<CustomData>("SPY").Symbol;
-            var history = algorithm.History<CustomData>(symbol, algorithm.StartDate, algorithm.EndDate, Resolution.Minute).ToList();
+            var start = algorithm.StartDate;
+            var end = algorithm.EndDate;
+            var span = end - start;
+            var periods = (int)span.TotalMinutes;
 
-            Assert.That(history, Has.Count.EqualTo(1539));
-            Assert.That(history, Has.All.Property("DataType").EqualTo(MarketDataType.Base));
-            Assert.IsTrue(_testHistoryProvider.HistryRequests.All(x => x.IsCustomData));
+            if (language == Language.CSharp)
+            {
+                var symbol = algorithm.AddData<CustomData>("SPY").Symbol;
+
+                var historyResults = new[]
+                {
+                    algorithm.History<CustomData>(symbol, start, end, Resolution.Minute),
+                    algorithm.History<CustomData>(symbol, span, Resolution.Minute),
+                    algorithm.History<CustomData>(symbol, periods, Resolution.Minute)
+                };
+
+                foreach (var history in historyResults)
+                {
+                    AssertCustomDataTypeHistory(history.ToList());
+                }
+
+                var historyResults2 = new[]
+                {
+                    algorithm.History<CustomData>(new[] { symbol }, start, end, Resolution.Minute),
+                    algorithm.History<CustomData>(new[] { symbol }, span, Resolution.Minute),
+                    algorithm.History<CustomData>(new[] { symbol }, periods, Resolution.Minute)
+                };
+
+                foreach (var history in historyResults2)
+                {
+                    AssertCustomDataTypeHistory(history.ToList());
+                }
+            }
+            else
+            {
+                using (Py.GIL())
+                {
+                    PythonInitializer.Initialize();
+
+                    var testModule = PyModule.FromString("testModule",
+                        @"
+from typing import Union
+from AlgorithmImports import *
+from QuantConnect.Tests import *
+
+class TestCustomMarketData(PythonData):
+    def GetSource(self, config, date, isLiveMode):
+        fileName = LeanData.GenerateZipFileName(Symbols.SPY, date, config.Resolution, config.TickType)
+        source = f'{Globals.DataFolder}equity/usa/minute/spy/{fileName}'
+        return SubscriptionDataSource(source, SubscriptionTransportMedium.LocalFile, FileFormat.Csv)
+
+    def Reader(self, config, line, date, isLiveMode):
+
+        data = line.split(',')
+
+        result = TestCustomMarketData()
+        result.DataType = MarketDataType.Base
+        result.Symbol = config.Symbol
+        result.Time = date + timedelta(milliseconds=int(data[0]))
+        result.Value = 1
+
+        return result
+
+def getDateRangeHistory(algorithm: QCAlgorithm, symbol: Union[Symbol, List[Symbol]], start: datetime, end: datetime):
+    return list(algorithm.History[TestCustomMarketData](symbol, start, end, Resolution.Minute))
+
+def getTimeSpanHistory(algorithm: QCAlgorithm, symbol: Union[Symbol, List[Symbol]], span: Union[timedelta, int]):
+    return list(algorithm.History[TestCustomMarketData](symbol, span, Resolution.Minute))
+        ");
+                    var customDataType = testModule.GetAttr("TestCustomMarketData");
+                    var symbol = algorithm.AddData(customDataType, "SPY").Symbol;
+
+                    dynamic getDateRangeHistory = testModule.GetAttr("getDateRangeHistory");
+                    dynamic getTimeSpanHistory = testModule.GetAttr("getTimeSpanHistory");
+
+                    var historyResults = new[]
+                    {
+                        getDateRangeHistory(algorithm, symbol, start, end),
+                        getTimeSpanHistory(algorithm, symbol, span),
+                        getTimeSpanHistory(algorithm, symbol, periods)
+                    };
+
+                    foreach (var history in historyResults)
+                    {
+                        AssertCustomDataTypeHistory(history.As<List<PythonData>>());
+                    }
+
+                    var historyResults2 = new[]
+                    {
+                        getDateRangeHistory(algorithm, new[] { symbol }, start, end),
+                        getTimeSpanHistory(algorithm, new[] { symbol }, span),
+                        getTimeSpanHistory(algorithm, new[] { symbol }, periods)
+                    };
+
+                    foreach (var history in historyResults2)
+                    {
+                        AssertCustomDataTypeHistory(history.As<List<DataDictionary<PythonData>>>());
+                    }
+                }
+            }
+
+            Assert.That(_testHistoryProvider.HistryRequests, Has.All.Property("IsCustomData").True);
+        }
+
+        [Test]
+        public void GetHistoryFromPythonWithCSharpCustomDataType()
+        {
+            var algorithm = GetAlgorithm(new DateTime(2013, 10, 8));
+            var start = algorithm.StartDate;
+            var end = algorithm.EndDate;
+            var span = end - start;
+            var periods = (int)span.TotalMinutes;
+
+            using (Py.GIL())
+            {
+                PythonInitializer.Initialize();
+
+                var testModule = PyModule.FromString("testModule",
+                    @"
+from typing import Union
+from AlgorithmImports import *
+from QuantConnect.Tests import *
+from QuantConnect.Tests.Algorithm import AlgorithmHistoryTests
+
+def getDateRangeHistory(algorithm: QCAlgorithm, symbol: Union[Symbol, List[Symbol]], start: datetime, end: datetime):
+    return list(algorithm.History[AlgorithmHistoryTests.CustomData](symbol, start, end, Resolution.Minute))
+
+def getTimeSpanHistory(algorithm: QCAlgorithm, symbol: Union[Symbol, List[Symbol]], span: Union[timedelta, int]):
+    return list(algorithm.History[AlgorithmHistoryTests.CustomData](symbol, span, Resolution.Minute))
+        ");
+                var symbol = algorithm.AddData<CustomData>("SPY").Symbol;
+
+                dynamic getDateRangeHistory = testModule.GetAttr("getDateRangeHistory");
+                dynamic getTimeSpanHistory = testModule.GetAttr("getTimeSpanHistory");
+
+                var historyResults = new[]
+                {
+                        getDateRangeHistory(algorithm, symbol, start, end),
+                        getTimeSpanHistory(algorithm, symbol, span),
+                        getTimeSpanHistory(algorithm, symbol, periods)
+                    };
+
+                foreach (var history in historyResults)
+                {
+                    AssertCustomDataTypeHistory(history.As<List<CustomData>>());
+                }
+
+                var historyResults2 = new[]
+                {
+                        getDateRangeHistory(algorithm, new[] { symbol }, start, end),
+                        getTimeSpanHistory(algorithm, new[] { symbol }, span),
+                        getTimeSpanHistory(algorithm, new[] { symbol }, periods)
+                    };
+
+                foreach (var history in historyResults2)
+                {
+                    AssertCustomDataTypeHistory(history.As<List<DataDictionary<CustomData>>>());
+                }
+            }
+
+            Assert.That(_testHistoryProvider.HistryRequests, Has.All.Property("IsCustomData").True);
         }
 
         [Test]
@@ -1266,7 +1425,7 @@ def getHistoryForContractDepthOffset(algorithm, symbol, start, end, resolution, 
                 Assert.AreEqual(390, quoteHistory.Count());
 
                 var tickHistory = algorithm.History<Tick>(ibmSymbol, ibmHistoryStart, ibmHistoryEnd, Resolution.Tick);
-                Assert.AreEqual(57460, tickHistory.Count());
+                Assert.AreEqual(132104, tickHistory.Count());
 
                 var openInterestHistory = algorithm.History<OpenInterest>(twxSymbol, twxHistoryStart, twxHistoryEnd);
                 Assert.AreEqual(1050, openInterestHistory.Count());
@@ -1312,6 +1471,24 @@ def getOpenInterestHistory(algorithm, symbol, start, end):
                     Assert.AreEqual(1050, openInterestHistory.shape[0].As<int>());
                 }
             }
+        }
+
+        [Test]
+        public void HistoryCallsGetSameTickCount()
+        {
+            var algorithm = GetAlgorithm(new DateTime(2014, 6, 6));
+            var ibmSymbol = Symbol.Create("IBM", SecurityType.Equity, Market.USA);
+
+            var start = new DateTime(2013, 10, 7);
+            var end = new DateTime(2013, 10, 8);
+
+            var history = algorithm.History(new [] { ibmSymbol }, start, end, Resolution.Tick);
+            var tickCountInSliceHistoryCall = history.Sum(x => x.Ticks[ibmSymbol].Count);
+            Assert.AreEqual(132104, tickCountInSliceHistoryCall);
+
+            var tickHistory = algorithm.History<Tick>(ibmSymbol, start, end, Resolution.Tick).ToList();
+            var tickCountInTickHistoryCall = tickHistory.Count;
+            Assert.AreEqual(tickCountInSliceHistoryCall, tickCountInTickHistoryCall);
         }
 
         private QCAlgorithm GetAlgorithm(DateTime dateTime)
@@ -1473,6 +1650,26 @@ def getOpenInterestHistory(algorithm, symbol, start, end):
             CheckThatHistoryResultsHaveEqualBarCount(historyResults, expectedHistoryCount);
             CheckThatHistoryResultsHaveDifferentPrices(historyResults,
                 "History results prices should have been different for each data normalization mode at each time");
+        }
+
+        /// <summary>
+        /// Helper method to assert that the right custom data history is fetched
+        /// </summary>
+        private static void AssertCustomDataTypeHistory<T>(List<T> history)
+            where T : IBaseData
+        {
+            Assert.AreEqual(1539, history.Count);
+            Assert.That(history, Has.All.Property("DataType").EqualTo(MarketDataType.Base));
+        }
+
+        /// <summary>
+        /// Helper method to assert that the right custom data history is fetched
+        /// </summary>
+        private static void AssertCustomDataTypeHistory<T>(List<DataDictionary<T>> history)
+            where T : IBaseData
+        {
+            Assert.AreEqual(1539, history.Count);
+            Assert.That(history.Select(x => x.Single().Value), Has.All.Property("DataType").EqualTo(MarketDataType.Base));
         }
 
         private static DataMappingMode[] GetAllDataMappingModes()

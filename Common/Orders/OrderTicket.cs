@@ -233,7 +233,11 @@ namespace QuantConnect.Orders
             switch (field)
             {
                 case OrderField.LimitPrice:
-                    if (_submitRequest.OrderType == OrderType.Limit)
+                    if (_submitRequest.OrderType == OrderType.ComboLimit)
+                    {
+                        return AccessOrder<ComboLimitOrder>(this, field, o => o.GroupOrderManager.LimitPrice, r => r.LimitPrice);
+                    }
+                    if (_submitRequest.OrderType == OrderType.Limit || _submitRequest.OrderType == OrderType.ComboLegLimit)
                     {
                         return AccessOrder<LimitOrder>(this, field, o => o.LimitPrice, r => r.LimitPrice);
                     }
@@ -265,7 +269,7 @@ namespace QuantConnect.Orders
                     throw new ArgumentOutOfRangeException(nameof(field), field, null);
             }
 
-            throw new ArgumentException(Invariant($"Unable to get field {field} on order of type {_submitRequest.OrderType}"));
+            throw new ArgumentException(Messages.OrderTicket.GetFieldError(this, field));
         }
 
         /// <summary>
@@ -376,8 +380,7 @@ namespace QuantConnect.Orders
                 if (_cancelRequest != null && _cancelRequest.Status != OrderRequestStatus.Error)
                 {
                     return OrderResponse.Error(request, OrderResponseErrorCode.RequestCanceled,
-                        Invariant($"Order {OrderId} has already received a cancellation request.")
-                    );
+                        Messages.OrderTicket.CancelRequestAlreadySubmitted(this));
                 }
             }
 
@@ -391,7 +394,7 @@ namespace QuantConnect.Orders
                 }
             }
 
-            throw new ArgumentException("CancelRequest is null.");
+            throw new ArgumentException(Messages.OrderTicket.NullCancelRequest);
         }
 
         /// <summary>
@@ -583,13 +586,7 @@ namespace QuantConnect.Orders
         /// <filterpriority>2</filterpriority>
         public override string ToString()
         {
-            var counts = Invariant($"Request Count: {RequestCount()} Response Count: {ResponseCount()}");
-            if (_order != null)
-            {
-                return Invariant($"{OrderId}: {_order} {counts}");
-            }
-
-            return Invariant($"{OrderId}: {counts}");
+            return Messages.OrderTicket.ToString(this, _order, RequestCount(), ResponseCount());
         }
 
         private int ResponseCount()

@@ -16,6 +16,7 @@
 
 using System;
 using System.Linq;
+using QuantConnect.Util;
 using QuantConnect.Data;
 using System.Collections;
 using System.Globalization;
@@ -149,7 +150,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             _dataCacheProvider = dataCacheProvider;
 
             //Save access to securities
-            _tradeableDates = dataRequest.TradableDays.GetEnumerator();
+            _tradeableDates = dataRequest.TradableDaysInDataTimeZone.GetEnumerator();
             _dataProvider = dataProvider;
         }
 
@@ -549,7 +550,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// </summary>
         public void Dispose()
         {
-            _subscriptionFactoryEnumerator?.Dispose();
+            _subscriptionFactoryEnumerator.DisposeSafely();
+            _tradeableDates.DisposeSafely();
         }
 
         /// <summary>

@@ -34,6 +34,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using QuantConnect.Storage;
+using QuantConnect.Algorithm.Framework.Alphas.Analysis;
 
 namespace QuantConnect.AlgorithmFactory.Python.Wrappers
 {
@@ -446,6 +447,11 @@ namespace QuantConnect.AlgorithmFactory.Python.Wrappers
         public string AccountCurrency => _baseAlgorithm.AccountCurrency;
 
         /// <summary>
+        /// Gets the insight manager
+        /// </summary>
+        public InsightManager Insights => _baseAlgorithm.Insights;
+
+        /// <summary>
         /// Set a required SecurityType-symbol and resolution for algorithm
         /// </summary>
         /// <param name="securityType">SecurityType Enum: Equity, Commodity, FOREX or Future</param>
@@ -524,6 +530,11 @@ namespace QuantConnect.AlgorithmFactory.Python.Wrappers
         /// Gets whether or not this algorithm has been locked and fully initialized
         /// </summary>
         public bool GetLocked() => _baseAlgorithm.GetLocked();
+
+        /// <summary>
+        /// Gets a read-only dictionary with all current parameters
+        /// </summary>
+        public IReadOnlyDictionary<string, string> GetParameters() => _baseAlgorithm.GetParameters();
 
         /// <summary>
         /// Gets the parameter with the specified name. If a parameter with the specified name does not exist,

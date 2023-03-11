@@ -19,6 +19,7 @@ using QuantConnect.Logging;
 using System.Globalization;
 using QuantConnect.Securities;
 using System.Collections.Generic;
+using QuantConnect.Securities.Option;
 using QuantConnect.Securities.Future;
 using QuantConnect.Securities.FutureOption;
 using static QuantConnect.StringExtensions;
@@ -159,7 +160,8 @@ namespace QuantConnect
 
             if (!SymbolPropertiesDatabase.FromDataFolder().TryGetMarket(underlying, SecurityType.Future, out var market))
             {
-                Log.Debug($"SymbolRepresentation.ParseFutureSymbol(): Failed to get market for future '{ticker}' and underlying '{underlying}'");
+                Log.Debug($@"SymbolRepresentation.ParseFutureSymbol(): {
+                    Messages.SymbolRepresentation.FailedToGetMarketForTickerAndUnderlying(ticker, underlying)}");
                 return null;
             }
 
@@ -217,7 +219,7 @@ namespace QuantConnect
 
             if (!SymbolPropertiesDatabase.FromDataFolder().TryGetMarket(futureTicker, SecurityType.Future, out var market))
             {
-                Log.Debug($"SymbolRepresentation.ParseFutureOptionSymbol(): No market found for '{futureTicker}'");
+                Log.Debug($"SymbolRepresentation.ParseFutureOptionSymbol(): {Messages.SymbolRepresentation.NoMarketFound(futureTicker)}");
                 return null;
             }
 
@@ -287,7 +289,8 @@ namespace QuantConnect
         {
             if (!symbol.SecurityType.IsOption())
             {
-                throw new ArgumentException(Invariant($"{nameof(GenerateOptionTickerOSI)} returns symbol to be an option, received {symbol.SecurityType}."));
+                throw new ArgumentException(
+                    Messages.SymbolRepresentation.UnexpectedSecurityTypeForMethod(nameof(GenerateOptionTickerOSI), symbol.SecurityType));
             }
 
             return GenerateOptionTickerOSI(symbol.Underlying.Value, symbol.ID.OptionRight, symbol.ID.StrikePrice, symbol.ID.Date);
@@ -317,7 +320,7 @@ namespace QuantConnect
         /// <returns>Symbol object for the specified OSI option ticker string</returns>
         public static Symbol ParseOptionTickerOSI(string ticker, SecurityType securityType = SecurityType.Option, string market = Market.USA)
         {
-            var underlying = ticker.Substring(0, 6).Trim();
+            var optionTicker = ticker.Substring(0, 6).Trim();
             var expiration = DateTime.ParseExact(ticker.Substring(6, 6), DateFormat.SixCharacter, null);
             OptionRight right;
             if (ticker[12] == 'C' || ticker[12] == 'c')
@@ -330,24 +333,26 @@ namespace QuantConnect
             }
             else
             {
-                throw new FormatException($"Expected 12th character to be 'C' or 'P' for OptionRight: {ticker} but was '{ticker[12]}'");
+                throw new FormatException(Messages.SymbolRepresentation.UnexpectedOptionRightFormatForParseOptionTickerOSI(ticker));
             }
             var strike = Parse.Decimal(ticker.Substring(13, 8)) / 1000m;
             SecurityIdentifier underlyingSid;
             if (securityType == SecurityType.Option)
             {
-                underlyingSid = SecurityIdentifier.GenerateEquity(underlying, market);
+                underlyingSid = SecurityIdentifier.GenerateEquity(optionTicker, market);
+                // let it fallback to it's default handling, which include mapping
+                optionTicker = null;
             }
             else if(securityType == SecurityType.IndexOption)
             {
-                underlyingSid = SecurityIdentifier.GenerateIndex(underlying, market);
+                underlyingSid = SecurityIdentifier.GenerateIndex(OptionSymbol.MapToUnderlying(optionTicker, securityType), market);
             }
             else
             {
-                throw new NotImplementedException($"ParseOptionTickerOSI(): security type {securityType} not implemented");
+                throw new NotImplementedException($"ParseOptionTickerOSI(): {Messages.SymbolRepresentation.SecurityTypeNotImplemented(securityType)}");
             }
-            var sid = SecurityIdentifier.GenerateOption(expiration, underlyingSid, market, strike, right, OptionStyle.American);
-            return new Symbol(sid, ticker, new Symbol(underlyingSid, underlying));
+            var sid = SecurityIdentifier.GenerateOption(expiration, underlyingSid, optionTicker, market, strike, right, OptionStyle.American);
+            return new Symbol(sid, ticker, new Symbol(underlyingSid, underlyingSid.Symbol));
         }
 
         /// <summary>

@@ -21,14 +21,13 @@ using QuantConnect.Data.Market;
 using QuantConnect.Securities;
 using QuantConnect.Brokerages;
 using Moq;
-using QuantConnect.Data.Shortable;
 using QuantConnect.Interfaces;
 using QuantConnect.Lean.Engine.TransactionHandlers;
 using QuantConnect.Orders;
 using QuantConnect.Orders.Fees;
 using QuantConnect.Tests.Common.Securities;
 using QuantConnect.Tests.Engine.DataFeeds;
-using QuantConnect.Orders.Fills;
+using System.Linq;
 
 namespace QuantConnect.Tests.Algorithm
 {
@@ -1453,6 +1452,34 @@ namespace QuantConnect.Tests.Algorithm
             Assert.That(ticket, Has.Property("Status").EqualTo(OrderStatus.Invalid));
         }
 
+        [TestCase(OrderType.MarketOnOpen)]
+        [TestCase(OrderType.MarketOnClose)]
+        public void GoodTilDateTimeInForceNotSupportedForMOOAndMOCOrders(OrderType orderType)
+        {
+            var algorithm = GetAlgorithm(out var msft, 1, 0);
+            Update(msft, 25);
+
+            var orderProperties = new OrderProperties() { TimeInForce = TimeInForce.GoodTilDate(algorithm.Time.AddDays(1)) };
+
+            OrderTicket ticket;
+            switch (orderType)
+            {
+                case OrderType.MarketOnOpen:
+                    ticket = algorithm.MarketOnOpenOrder(msft.Symbol, 1, orderProperties: orderProperties);
+                    break;
+                case OrderType.MarketOnClose:
+                    ticket = algorithm.MarketOnCloseOrder(msft.Symbol, 1, orderProperties: orderProperties);
+                    break;
+                default:
+                    Assert.Fail("Unexpected order type");
+                    return;
+            }
+
+
+            Assert.AreEqual(OrderStatus.New, ticket.Status);
+            Assert.AreEqual(TimeInForce.GoodTilCanceled, ticket.SubmitRequest.OrderProperties.TimeInForce);
+        }
+
         [Test]
         public void EuropeanOptionsCannotBeExercisedBeforeExpiry()
         {
@@ -1475,6 +1502,79 @@ namespace QuantConnect.Tests.Algorithm
             algo.SetDateTime(optionExpiry.AddHours(15));
             ticket = algo.ExerciseOption(europeanOptionContract.Symbol, 1);
             Assert.AreEqual(OrderStatus.New, ticket.Status);
+        }
+
+        [Test]
+        public void ComboOrderPreChecks()
+        {
+            var start = DateTime.UtcNow;
+            var algo = new AlgorithmStub();
+            algo.SetFinishedWarmingUp();
+            algo.AddEquity("SPY").SetMarketPrice(new TradeBar
+            {
+                Time = algo.Time,
+                Open = 10m,
+                High = 10,
+                Low = 10,
+                Close = 10,
+                Volume = 0,
+                Symbol = Symbols.SPY,
+                DataType = MarketDataType.TradeBar
+            });
+
+            algo.AddOptionContract(Symbols.SPY_C_192_Feb19_2016);
+            var legs = new List<Leg>
+            {
+                new Leg { Symbol = Symbols.SPY, Quantity = 1 },
+                new Leg { Symbol = Symbols.SPY_C_192_Feb19_2016, Quantity = 1 },
+            };
+
+            // the underlying has a price but the option does not
+            var result = algo.ComboMarketOrder(legs, 1);
+
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(OrderStatus.Invalid, result.Single().Status);
+            Assert.IsTrue(result.Single().SubmitRequest.Response.IsError);
+            Assert.IsTrue(result.Single().SubmitRequest.Response.ErrorMessage.Contains("does not have an accurate price"));
+
+            Assert.IsTrue(DateTime.UtcNow - start < TimeSpan.FromMilliseconds(500));
+        }
+
+        [TestCase(new int[] { 1, 2 }, false)]
+        [TestCase(new int[] { -1, 10 }, false)]
+        [TestCase(new int[] { 2, -5 }, false)]
+        [TestCase(new int[] { 1, 2, 3 }, false)]
+        [TestCase(new int[] { 200, -11, 7 }, false)]
+        [TestCase(new int[] { 10, 20 }, true)]
+        [TestCase(new int[] { -10, 100 }, true)]
+        [TestCase(new int[] { 20, -50 }, true)]
+        [TestCase(new int[] { 10, 20, 30 }, true)]
+        [TestCase(new int[] { 1000, -55, 35 }, true)]
+        public void ComboOrderLegsRatiosAreValidated(int[] quantities, bool shouldThrow)
+        {
+            var algo = GetAlgorithm(out _, 1, 0);
+            var legs = quantities.Select(q => Leg.Create(Symbols.MSFT, q)).ToList();
+
+            if (shouldThrow)
+            {
+                Assert.Throws<ArgumentException>(() => algo.ComboMarketOrder(legs, 1));
+                Assert.Throws<ArgumentException>(() => algo.ComboLimitOrder(legs, 1, 100));
+                Assert.Throws<ArgumentException>(() => algo.ComboLegLimitOrder(legs.Select(leg =>
+                {
+                    leg.OrderPrice = 10;
+                    return leg;
+                }).ToList(), 1));
+            }
+            else
+            {
+                Assert.DoesNotThrow(() => algo.ComboMarketOrder(legs, 1));
+                Assert.DoesNotThrow(() => algo.ComboLimitOrder(legs, 1, 100));
+                Assert.DoesNotThrow(() => algo.ComboLegLimitOrder(legs.Select(leg =>
+                {
+                    leg.OrderPrice = 10;
+                    return leg;
+                }).ToList(), 1));
+            }
         }
 
         private class TestShortableProvider : IShortableProvider

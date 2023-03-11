@@ -84,7 +84,7 @@ namespace QuantConnect.Securities
         }
 
         /// <summary>
-        /// Allows normalizing live asset prices to US Dollars for Lean consumption. In some exchanges, 
+        /// Allows normalizing live asset prices to US Dollars for Lean consumption. In some exchanges,
         /// for some securities, data is expressed in cents like for example for corn futures ('ZC').
         /// </summary>
         /// <remarks>Default value is 1 but for some futures in cents it's 100</remarks>
@@ -106,7 +106,7 @@ namespace QuantConnect.Securities
 
             if (LotSize <= 0)
             {
-                throw new ArgumentException("SymbolProperties LotSize can not be less than or equal to 0");
+                throw new ArgumentException(Messages.SymbolProperties.InvalidLotSize);
             }
 
             MarketTicker = marketTicker;
@@ -115,8 +115,16 @@ namespace QuantConnect.Securities
             PriceMagnifier = priceMagnifier;
             if (PriceMagnifier <= 0)
             {
-                throw new ArgumentException("SymbolProprties PriceMagnifier can not be less than or equal to 0");
+                throw new ArgumentException(Messages.SymbolProperties.InvalidPriceMagnifier);
             }
+        }
+
+        /// <summary>
+        /// The string representation of these symbol properties
+        /// </summary>
+        public override string ToString()
+        {
+            return Messages.SymbolProperties.ToString(this);
         }
 
         /// <summary>

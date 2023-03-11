@@ -27,7 +27,6 @@ using QuantConnect.Brokerages;
 using QuantConnect.Configuration;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Interfaces;
-using QuantConnect.Lean.Engine.Alphas;
 using QuantConnect.Lean.Engine.TransactionHandlers;
 using QuantConnect.Logging;
 using QuantConnect.Notifications;
@@ -54,7 +53,10 @@ namespace QuantConnect.Lean.Engine.Results
         private DateTime _nextChartTrimming;
         private DateTime _nextLogStoreUpdate;
         private DateTime _nextStatisticsUpdate;
+        private DateTime _nextInsightStoreUpdate;
         private DateTime _currentUtcDate;
+
+        private TimeSpan _storeInsightPeriod;
 
         /// <summary>
         /// The earliest time of next dump to the status file
@@ -84,6 +86,7 @@ namespace QuantConnect.Lean.Engine.Results
             _cancellationTokenSource = new CancellationTokenSource();
             ResamplePeriod = TimeSpan.FromSeconds(2);
             NotificationPeriod = TimeSpan.FromSeconds(1);
+            _storeInsightPeriod = TimeSpan.FromMinutes(10);
             SetNextStatusUpdate();
             _streamedChartLimit = Config.GetInt("streamed-chart-limit", 12);
             _streamedChartGroupSize = Config.GetInt("streamed-chart-group-size", 3);
@@ -244,7 +247,7 @@ namespace QuantConnect.Lean.Engine.Results
                         var orderEvents = GetOrderEventsToStore();
 
                         var orders = new Dictionary<int, Order>(TransactionHandler.Orders);
-                        var complete = new LiveResultPacket(_job, new LiveResult(new LiveResultParameters(chartComplete, orders, Algorithm.Transactions.TransactionRecord, holdings, Algorithm.Portfolio.CashBook, deltaStatistics, runtimeStatistics, orderEvents, serverStatistics)));
+                        var complete = new LiveResultPacket(_job, new LiveResult(new LiveResultParameters(chartComplete, orders, Algorithm.Transactions.TransactionRecord, holdings, Algorithm.Portfolio.CashBook, deltaStatistics, runtimeStatistics, orderEvents, serverStatistics, state: GetAlgorithmState())));
                         StoreResult(complete);
                         _nextChartsUpdate = DateTime.UtcNow.Add(ChartUpdateInterval);
                         Log.Debug("LiveTradingResultHandler.Update(): End-store result");
@@ -276,7 +279,7 @@ namespace QuantConnect.Lean.Engine.Results
                                 _job.AlgorithmId,
                                 Algorithm.Portfolio.TotalUnrealizedProfit,
                                 Algorithm.Portfolio.TotalFees,
-                                Algorithm.Portfolio.TotalProfit,
+                                Algorithm.Portfolio.TotalNetProfit,
                                 Algorithm.Portfolio.TotalHoldingsValue,
                                 Algorithm.Portfolio.TotalPortfolioValue,
                                 GetNetReturn(),
@@ -340,6 +343,13 @@ namespace QuantConnect.Lean.Engine.Results
                         }
                         _nextChartTrimming = DateTime.UtcNow.AddMinutes(10);
                         Log.Debug("LiveTradingResultHandler.Update(): Finished trimming charts");
+                    }
+
+                    if (utcNow > _nextInsightStoreUpdate)
+                    {
+                        StoreInsights();
+
+                        _nextInsightStoreUpdate = DateTime.UtcNow.Add(_storeInsightPeriod);
                     }
                 }
                 catch (Exception err)
@@ -423,8 +433,7 @@ namespace QuantConnect.Lean.Engine.Results
                     statistics: statistics.Summary,
                     runtimeStatistics: runtimeStatistics,
                     orderEvents: null, // we stored order events separately
-                    serverStatistics: serverStatistics,
-                    alphaRuntimeStatistics: AlphaRuntimeStatistics));
+                    serverStatistics: serverStatistics));
 
                 SaveResults($"{AlgorithmId}.json", result);
                 Log.Debug("LiveTradingResultHandler.Update(): status update end.");
@@ -489,8 +498,7 @@ namespace QuantConnect.Lean.Engine.Results
                 {
                     Statistics = deltaStatistics,
                     RuntimeStatistics = runtimeStatistics,
-                    ServerStatistics = serverStatistics,
-                    AlphaRuntimeStatistics = AlphaRuntimeStatistics
+                    ServerStatistics = serverStatistics
                 })
             };
 
@@ -587,6 +595,7 @@ namespace QuantConnect.Lean.Engine.Results
         {
             Messages.Enqueue(new RuntimeErrorPacket(_job.UserId, AlgorithmId, message, stacktrace));
             AddToLogStore(message + (!string.IsNullOrEmpty(stacktrace) ? ": StackTrace: " + stacktrace : string.Empty));
+            SetAlgorithmState(message, stacktrace);
         }
 
         /// <summary>
@@ -674,17 +683,13 @@ namespace QuantConnect.Lean.Engine.Results
                         Charts.AddOrUpdate(update.Name, chart);
                     }
 
-                    // for alpha assets chart, we always create a new series instance (step on previous value)
-                    var forceNewSeries = update.Name == ChartingInsightManagerExtension.AlphaAssets;
-
                     //Add these samples to this chart.
                     foreach (var series in update.Series.Values)
                     {
                         if (series.Values.Count > 0)
                         {
                             var thisSeries = chart.TryAddAndGetSeries(series.Name, series.SeriesType, series.Index,
-                                series.Unit, series.Color, series.ScatterMarkerSymbol,
-                                forceNewSeries);
+                                series.Unit, series.Color, series.ScatterMarkerSymbol, false);
                             if (series.SeriesType == SeriesType.Pie)
                             {
                                 var dataPoint = series.ConsolidateChartPoints();
@@ -803,13 +808,16 @@ namespace QuantConnect.Lean.Engine.Results
                     result = new LiveResultPacket(_job,
                         new LiveResult(new LiveResultParameters(charts, orders, profitLoss, new Dictionary<string, Holding>(),
                             Algorithm.Portfolio.CashBook, statisticsResults.Summary, runtime, GetOrderEventsToStore(),
-                            algorithmConfiguration: AlgorithmConfiguration.Create(Algorithm))));
+                            algorithmConfiguration: AlgorithmConfiguration.Create(Algorithm), state: GetAlgorithmState(DateTime.UtcNow.ToStringInvariant()))));
                 }
                 else
                 {
                     result = LiveResultPacket.CreateEmpty(_job);
+                    result.Results.State = GetAlgorithmState(DateTime.UtcNow.ToStringInvariant());
                 }
                 result.ProcessingTime = (DateTime.UtcNow - StartTime).TotalSeconds;
+
+                StoreInsights();
 
                 //Store to S3:
                 StoreResult(result);
@@ -875,8 +883,6 @@ namespace QuantConnect.Lean.Engine.Results
                         // lets null the orders events so that they aren't stored again and generate a giant file
                         live.Results.OrderEvents = null;
                     }
-
-                    live.Results.AlphaRuntimeStatistics = AlphaRuntimeStatistics;
 
                     // we need to down sample
                     var start = DateTime.UtcNow.Date;
@@ -1006,7 +1012,7 @@ namespace QuantConnect.Lean.Engine.Results
                 charts.Add(kvp.Key, newChart);
                 foreach (var series in chart.Series.Values)
                 {
-                    var newSeries = new Series(series.Name, series.SeriesType, series.Unit, series.Color);
+                    var newSeries = series.Clone(empty: true);
                     newSeries.Values.AddRange(series.Values.Where(chartPoint => chartPoint.x >= unixDateStart && chartPoint.x <= unixDateStop));
                     newChart.AddSeries(newSeries);
                 }

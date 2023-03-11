@@ -112,7 +112,7 @@ namespace QuantConnect.Algorithm.CSharp
         /// <summary>
         /// Data Points count of all timeslices of algorithm
         /// </summary>
-        public virtual long DataPoints => 16690;
+        public virtual long DataPoints => 16049;
 
         /// <summary>
         /// Data Points count of the algorithm history
@@ -124,48 +124,30 @@ namespace QuantConnect.Algorithm.CSharp
         /// </summary>
         public virtual Dictionary<string, string> ExpectedStatistics => new Dictionary<string, string>
         {
-            {"Total Trades", "4"},
+            {"Total Trades", "3"},
             {"Average Win", "0%"},
-            {"Average Loss", "-53.10%"},
-            {"Compounding Annual Return", "-92.544%"},
-            {"Drawdown", "10.100%"},
+            {"Average Loss", "-2.45%"},
+            {"Compounding Annual Return", "-62.036%"},
+            {"Drawdown", "9.300%"},
             {"Expectancy", "-1"},
-            {"Net Profit", "-9.915%"},
-            {"Sharpe Ratio", "-3.845"},
-            {"Probabilistic Sharpe Ratio", "0.053%"},
+            {"Net Profit", "-3.051%"},
+            {"Sharpe Ratio", "-4.466"},
+            {"Probabilistic Sharpe Ratio", "0.781%"},
             {"Loss Rate", "100%"},
             {"Win Rate", "0%"},
             {"Profit-Loss Ratio", "0"},
-            {"Alpha", "-0.558"},
-            {"Beta", "0.313"},
-            {"Annual Standard Deviation", "0.112"},
-            {"Annual Variance", "0.013"},
-            {"Information Ratio", "-6.652"},
-            {"Tracking Error", "0.125"},
-            {"Treynor Ratio", "-1.379"},
+            {"Alpha", "-0.172"},
+            {"Beta", "0.076"},
+            {"Annual Standard Deviation", "0.029"},
+            {"Annual Variance", "0.001"},
+            {"Information Ratio", "-6.723"},
+            {"Tracking Error", "0.099"},
+            {"Treynor Ratio", "-1.733"},
             {"Total Fees", "$0.00"},
-            {"Estimated Strategy Capacity", "$13000000.00"},
+            {"Estimated Strategy Capacity", "$9100000.00"},
             {"Lowest Capacity Asset", "SPX XL80P3GHDZXQ|SPX 31"},
-            {"Fitness Score", "0.039"},
-            {"Kelly Criterion Estimate", "0"},
-            {"Kelly Criterion Probability Value", "0"},
-            {"Sortino Ratio", "-1.763"},
-            {"Return Over Maximum Drawdown", "-9.371"},
-            {"Portfolio Turnover", "0.278"},
-            {"Total Insights Generated", "0"},
-            {"Total Insights Closed", "0"},
-            {"Total Insights Analysis Completed", "0"},
-            {"Long Insight Count", "0"},
-            {"Short Insight Count", "0"},
-            {"Long/Short Ratio", "100%"},
-            {"Estimated Monthly Alpha Value", "$0"},
-            {"Total Accumulated Estimated Alpha Value", "$0"},
-            {"Mean Population Estimated Insight Value", "$0"},
-            {"Mean Population Direction", "0%"},
-            {"Mean Population Magnitude", "0%"},
-            {"Rolling Averaged Population Direction", "0%"},
-            {"Rolling Averaged Population Magnitude", "0%"},
-            {"OrderListHash", "3b71b146c15d234b4dc9e201838b551c"}
+            {"Portfolio Turnover", "24.90%"},
+            {"OrderListHash", "905811fc779835bf0c514963a20e40f9"}
         };
     }
 }

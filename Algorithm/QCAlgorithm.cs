@@ -40,7 +40,6 @@ using System.Collections.Concurrent;
 using QuantConnect.Securities.Future;
 using QuantConnect.Securities.Crypto;
 using QuantConnect.Algorithm.Framework.Alphas;
-using QuantConnect.Algorithm.Framework.Alphas.Analysis.Providers;
 using QuantConnect.Algorithm.Framework.Execution;
 using QuantConnect.Algorithm.Framework.Portfolio;
 using QuantConnect.Algorithm.Framework.Risk;
@@ -48,6 +47,8 @@ using QuantConnect.Algorithm.Framework.Selection;
 using QuantConnect.Algorithm.Selection;
 using QuantConnect.Storage;
 using Index = QuantConnect.Securities.Index.Index;
+using QuantConnect.Securities.CryptoFuture;
+using QuantConnect.Algorithm.Framework.Alphas.Analysis;
 
 namespace QuantConnect.Algorithm
 {
@@ -146,7 +147,7 @@ namespace QuantConnect.Algorithm
             //Initialise End Date:
             SetEndDate(DateTime.UtcNow.ConvertFromUtc(TimeZone));
 
-            _securityDefinitionSymbolResolver = new SecurityDefinitionSymbolResolver();
+            _securityDefinitionSymbolResolver = SecurityDefinitionSymbolResolver.GetInstance();
 
             Settings = new AlgorithmSettings();
             DefaultOrderProperties = new OrderProperties();
@@ -189,15 +190,14 @@ namespace QuantConnect.Algorithm
             FutureChainProvider = new EmptyFutureChainProvider();
             _historyRequestFactory = new HistoryRequestFactory(this);
 
-            // Framework
-            _securityValuesProvider = new AlgorithmSecurityValuesProvider(this);
-
             // set model defaults, universe selection set via PostInitialize
             SetAlpha(new NullAlphaModel());
             SetPortfolioConstruction(new NullPortfolioConstructionModel());
             SetExecution(new ImmediateExecutionModel());
             SetRiskManagement(new NullRiskManagementModel());
             SetUniverseSelection(new NullUniverseSelectionModel());
+
+            Insights = new InsightManager();
         }
 
         /// <summary>
@@ -1680,10 +1680,10 @@ namespace QuantConnect.Algorithm
         {
             // allow users to specify negative numbers, we get the abs of it
             var contractOffset = (uint)Math.Abs(contractDepthOffset);
-            if (contractOffset > 2)
+            if (contractOffset > Futures.MaximumContractDepthOffset)
             {
-                throw new ArgumentOutOfRangeException(nameof(contractDepthOffset), "'contractDepthOffset' current maximum value is 2." +
-                    " Front month (0) and only 2 back month contracts are currently supported.");
+                throw new ArgumentOutOfRangeException(nameof(contractDepthOffset), $"'contractDepthOffset' current maximum value is {Futures.MaximumContractDepthOffset}." +
+                    $" Front month (0) and only {Futures.MaximumContractDepthOffset} back month contracts are currently supported.");
             }
 
             var isCanonical = symbol.IsCanonical();
@@ -1694,11 +1694,27 @@ namespace QuantConnect.Algorithm
                 return AddOptionContract(symbol, resolution, fillDataForward, leverage, extendedMarketHours);
             }
 
-            var configs = SubscriptionManager.SubscriptionDataConfigService.Add(symbol,
-                resolution,
-                fillDataForward,
-                extendedMarketHours,
-                isFilteredSubscription: !isCanonical);
+            var isFilteredSubscription = !isCanonical;
+            List<SubscriptionDataConfig> configs;
+            // we pass dataNormalizationMode to SubscriptionManager.SubscriptionDataConfigService.Add conditionally,
+            // so the default value for its argument is used when the it is null here.
+            if (dataNormalizationMode.HasValue)
+            {
+                configs = SubscriptionManager.SubscriptionDataConfigService.Add(symbol,
+                    resolution,
+                    fillDataForward,
+                    extendedMarketHours,
+                    isFilteredSubscription,
+                    dataNormalizationMode: dataNormalizationMode.Value);
+            }
+            else
+            {
+                configs = SubscriptionManager.SubscriptionDataConfigService.Add(symbol,
+                   resolution,
+                   fillDataForward,
+                   extendedMarketHours,
+                   isFilteredSubscription);
+            }
 
             var security = Securities.CreateSecurity(symbol, configs, leverage);
 
@@ -1803,10 +1819,29 @@ namespace QuantConnect.Algorithm
         /// <param name="market">The option's market, <seealso cref="Market"/>. Default value is null, but will be resolved using BrokerageModel.DefaultMarkets in <see cref="AddSecurity{T}"/></param>
         /// <param name="fillDataForward">If true, data will be provided to the algorithm every Second, Minute, Hour, or Day, while the asset is open and depending on the Resolution this option was configured to use.</param>
         /// <param name="leverage">The requested leverage for the </param>
-        /// <returns></returns>
+        /// <returns>The new option security instance</returns>
         /// <exception cref="KeyNotFoundException"></exception>
         [DocumentationAttribute(AddingData)]
         public Option AddOption(Symbol underlying, Resolution? resolution = null, string market = null, bool fillDataForward = true, decimal leverage = Security.NullLeverage)
+        {
+            return AddOption(underlying, null, resolution, market, fillDataForward, leverage);
+        }
+
+        /// <summary>
+        /// Creates and adds a new <see cref="Option"/> security to the algorithm.
+        /// This method can be used to add options with non-equity asset classes
+        /// to the algorithm (e.g. Future Options).
+        /// </summary>
+        /// <param name="underlying">Underlying asset Symbol to use as the option's underlying</param>
+        /// <param name="targetOption">The target option ticker. This is useful when the option ticker does not match the underlying, e.g. SPX index and the SPXW weekly option. If null is provided will use underlying</param>
+        /// <param name="resolution">The <see cref="Resolution"/> of market data, Tick, Second, Minute, Hour, or Daily. Default is <see cref="Resolution.Minute"/></param>
+        /// <param name="market">The option's market, <seealso cref="Market"/>. Default value is null, but will be resolved using BrokerageModel.DefaultMarkets in <see cref="AddSecurity{T}"/></param>
+        /// <param name="fillDataForward">If true, data will be provided to the algorithm every Second, Minute, Hour, or Day, while the asset is open and depending on the Resolution this option was configured to use.</param>
+        /// <param name="leverage">The requested leverage for the </param>
+        /// <returns>The new option security instance</returns>
+        /// <exception cref="KeyNotFoundException"></exception>
+        public Option AddOption(Symbol underlying, string targetOption, Resolution? resolution = null,
+            string market = null, bool fillDataForward = true, decimal leverage = Security.NullLeverage)
         {
             var optionType = QuantConnect.Symbol.GetOptionTypeFromUnderlying(underlying);
 
@@ -1819,12 +1854,21 @@ namespace QuantConnect.Algorithm
             }
 
             Symbol canonicalSymbol;
-            var alias = "?" + underlying.Value;
+
+            string alias;
+            if (!string.IsNullOrEmpty(targetOption))
+            {
+                alias = $"?{targetOption}";
+            }
+            else
+            {
+                alias = $"?{underlying.Value}";
+            }
             if (!SymbolCache.TryGetSymbol(alias, out canonicalSymbol) ||
                 canonicalSymbol.ID.Market != market ||
                 !canonicalSymbol.SecurityType.IsOption())
             {
-                canonicalSymbol = QuantConnect.Symbol.CreateCanonicalOption(underlying, market, alias);
+                canonicalSymbol = QuantConnect.Symbol.CreateCanonicalOption(underlying, targetOption, market, alias);
             }
 
             return (Option)AddSecurity(canonicalSymbol, resolution, fillDataForward, leverage);
@@ -1954,12 +1998,26 @@ namespace QuantConnect.Algorithm
         [DocumentationAttribute(AddingData)]
         public Option AddIndexOption(Symbol symbol, Resolution? resolution = null, bool fillDataForward = true)
         {
+            return AddIndexOption(symbol, null, resolution, fillDataForward);
+        }
+
+        /// <summary>
+        /// Creates and adds index options to the algorithm.
+        /// </summary>
+        /// <param name="symbol">The Symbol of the <see cref="Security"/> returned from <see cref="AddIndex"/></param>
+        /// <param name="targetOption">The target option ticker. This is useful when the option ticker does not match the underlying, e.g. SPX index and the SPXW weekly option. If null is provided will use underlying</param>
+        /// <param name="resolution">Resolution of the index option contracts, i.e. the granularity of the data</param>
+        /// <param name="fillDataForward">If true, this will fill in missing data points with the previous data point</param>
+        /// <returns>Canonical Option security</returns>
+        [DocumentationAttribute(AddingData)]
+        public Option AddIndexOption(Symbol symbol, string targetOption, Resolution? resolution = null, bool fillDataForward = true)
+        {
             if (symbol.SecurityType != SecurityType.Index)
             {
                 throw new ArgumentException("Symbol provided must be of type SecurityType.Index");
             }
 
-            return AddOption(symbol, resolution, symbol.ID.Market, fillDataForward);
+            return AddOption(symbol, targetOption, resolution, symbol.ID.Market, fillDataForward);
         }
 
         /// <summary>
@@ -2126,6 +2184,21 @@ namespace QuantConnect.Algorithm
         public Crypto AddCrypto(string ticker, Resolution? resolution = null, string market = null, bool fillDataForward = true, decimal leverage = Security.NullLeverage)
         {
             return AddSecurity<Crypto>(SecurityType.Crypto, ticker, resolution, market, fillDataForward, leverage, false);
+        }
+
+        /// <summary>
+        /// Creates and adds a new <see cref="CryptoFuture"/> security to the algorithm
+        /// </summary>
+        /// <param name="ticker">The currency pair</param>
+        /// <param name="resolution">The <see cref="Resolution"/> of market data, Tick, Second, Minute, Hour, or Daily. Default is <see cref="Resolution.Minute"/></param>
+        /// <param name="market">The cfd trading market, <seealso cref="Market"/>. Default value is null and looked up using BrokerageModel.DefaultMarkets in <see cref="AddSecurity{T}"/></param>
+        /// <param name="fillDataForward">If true, returns the last available data even if none in that timeslice. Default is <value>true</value></param>
+        /// <param name="leverage">The requested leverage for this equity. Default is set by <see cref="SecurityInitializer"/></param>
+        /// <returns>The new <see cref="CryptoFuture"/> security</returns>
+        [DocumentationAttribute(AddingData)]
+        public CryptoFuture AddCryptoFuture(string ticker, Resolution? resolution = null, string market = null, bool fillDataForward = true, decimal leverage = Security.NullLeverage)
+        {
+            return AddSecurity<CryptoFuture>(SecurityType.CryptoFuture, ticker, resolution, market, fillDataForward, leverage, false);
         }
 
         /// <summary>
@@ -2699,7 +2772,7 @@ namespace QuantConnect.Algorithm
         /// <param name="insights">The collection of insights generaed at the current time step</param>
         /// <param name="clone">Will emit a clone of the generated insights</param>
         [DocumentationAttribute(AlgorithmFramework)]
-        private void OnInsightsGenerated(Insight[] insights, bool clone = true)
+        private void OnInsightsGenerated(Insight[] insights)
         {
             // debug printing of generated insights
             if (DebugMode)
@@ -2707,7 +2780,9 @@ namespace QuantConnect.Algorithm
                 Log($"{Time}: ALPHA: {string.Join(" | ", insights.Select(i => i.ToString()).OrderBy(i => i))}");
             }
 
-            InsightsGenerated?.Invoke(this, new GeneratedInsightsCollection(UtcTime, insights, clone: clone));
+            Insights.AddRange(insights);
+
+            InsightsGenerated?.Invoke(this, new GeneratedInsightsCollection(UtcTime, insights));
         }
 
         /// <summary>
@@ -2822,6 +2897,18 @@ namespace QuantConnect.Algorithm
         }
 
         /// <summary>
+        /// Converts a <see cref="Symbol"/> into an ISIN identifier
+        /// </summary>
+        /// <param name="symbol">The <see cref="Symbol"/></param>
+        /// <returns>ISIN corresponding to the Symbol. If no matching ISIN is found, returns null.</returns>
+        [DocumentationAttribute(HandlingData)]
+        [DocumentationAttribute(SecuritiesAndPortfolio)]
+        public string ISIN(Symbol symbol)
+        {
+            return _securityDefinitionSymbolResolver.ISIN(symbol);
+        }
+
+        /// <summary>
         /// Converts a composite FIGI identifier into a <see cref="Symbol"/>
         /// </summary>
         /// <param name="compositeFigi">The composite Financial Instrument Global Identifier (FIGI) of an asset</param>
@@ -2842,6 +2929,18 @@ namespace QuantConnect.Algorithm
         }
 
         /// <summary>
+        /// Converts a <see cref="Symbol"/> into a composite FIGI identifier
+        /// </summary>
+        /// <param name="symbol">The <see cref="Symbol"/></param>
+        /// <returns>Composite FIGI corresponding to the Symbol. If no matching composite FIGI is found, returns null.</returns>
+        [DocumentationAttribute(HandlingData)]
+        [DocumentationAttribute(SecuritiesAndPortfolio)]
+        public string CompositeFIGI(Symbol symbol)
+        {
+            return _securityDefinitionSymbolResolver.CompositeFIGI(symbol);
+        }
+
+        /// <summary>
         /// Converts a CUSIP identifier into a <see cref="Symbol"/>
         /// </summary>
         /// <param name="cusip">The CUSIP number of an asset</param>
@@ -2858,6 +2957,18 @@ namespace QuantConnect.Algorithm
         }
 
         /// <summary>
+        /// Converts a <see cref="Symbol"/> into a CUSIP identifier
+        /// </summary>
+        /// <param name="symbol">The <see cref="Symbol"/></param>
+        /// <returns>CUSIP corresponding to the Symbol. If no matching CUSIP is found, returns null.</returns>
+        [DocumentationAttribute(HandlingData)]
+        [DocumentationAttribute(SecuritiesAndPortfolio)]
+        public string CUSIP(Symbol symbol)
+        {
+            return _securityDefinitionSymbolResolver.CUSIP(symbol);
+        }
+
+        /// <summary>
         /// Converts a SEDOL identifier into a <see cref="Symbol"/>
         /// </summary>
         /// <param name="sedol">The SEDOL identifier of an asset</param>
@@ -2871,6 +2982,18 @@ namespace QuantConnect.Algorithm
         public Symbol SEDOL(string sedol, DateTime? tradingDate = null)
         {
             return _securityDefinitionSymbolResolver.SEDOL(sedol, GetVerifiedTradingDate(tradingDate));
+        }
+
+        /// <summary>
+        /// Converts a <see cref="Symbol"/> into a SEDOL identifier
+        /// </summary>
+        /// <param name="symbol">The <see cref="Symbol"/></param>
+        /// <returns>SEDOL corresponding to the Symbol. If no matching SEDOL is found, returns null.</returns>
+        [DocumentationAttribute(HandlingData)]
+        [DocumentationAttribute(SecuritiesAndPortfolio)]
+        public string SEDOL(Symbol symbol)
+        {
+            return _securityDefinitionSymbolResolver.SEDOL(symbol);
         }
 
         /// <summary>

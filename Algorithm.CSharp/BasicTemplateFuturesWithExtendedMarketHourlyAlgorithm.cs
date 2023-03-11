@@ -41,7 +41,7 @@ namespace QuantConnect.Algorithm.CSharp
         /// <summary>
         /// Data Points count of all timeslices of algorithm
         /// </summary>
-        public override long DataPoints => 205645;
+        public override long DataPoints => 248521;
 
         /// <summary>
         /// This is used by the regression test system to indicate what the expected statistics are from running the algorithm
@@ -70,25 +70,7 @@ namespace QuantConnect.Algorithm.CSharp
             {"Total Fees", "$4521.78"},
             {"Estimated Strategy Capacity", "$2000.00"},
             {"Lowest Capacity Asset", "ES VP274HSU1AF5"},
-            {"Fitness Score", "0.131"},
-            {"Kelly Criterion Estimate", "0"},
-            {"Kelly Criterion Probability Value", "0"},
-            {"Sortino Ratio", "-6.211"},
-            {"Return Over Maximum Drawdown", "-0.995"},
-            {"Portfolio Turnover", "0.649"},
-            {"Total Insights Generated", "0"},
-            {"Total Insights Closed", "0"},
-            {"Total Insights Analysis Completed", "0"},
-            {"Long Insight Count", "0"},
-            {"Short Insight Count", "0"},
-            {"Long/Short Ratio", "100%"},
-            {"Estimated Monthly Alpha Value", "$0"},
-            {"Total Accumulated Estimated Alpha Value", "$0"},
-            {"Mean Population Estimated Insight Value", "$0"},
-            {"Mean Population Direction", "0%"},
-            {"Mean Population Magnitude", "0%"},
-            {"Rolling Averaged Population Direction", "0%"},
-            {"Rolling Averaged Population Magnitude", "0%"},
+            {"Portfolio Turnover", "56.49%"},
             {"OrderListHash", "2402a307b20aee195b77b8478d7ca64d"}
         };
     }

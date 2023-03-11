@@ -90,15 +90,15 @@ namespace QuantConnect.Securities.Future
                 new SecurityDataFilter(),
                 new SecurityPriceVariationModel(),
                 currencyConverter,
-                registeredTypes
+                registeredTypes,
+                Securities.MarginInterestRateModel.Null
                 )
         {
             BuyingPowerModel = new FutureMarginModel(0, this);
             // for now all futures are cash settled as we don't allow underlying (Live Cattle?) to be posted on the account
             SettlementType = SettlementType.Cash;
             Holdings = new FutureHolding(this, currencyConverter);
-            _symbolProperties = symbolProperties;
-            SetFilter(TimeSpan.Zero, TimeSpan.Zero);
+            ContractFilter = new EmptyContractFilter();
         }
 
         /// <summary>
@@ -137,20 +137,17 @@ namespace QuantConnect.Securities.Future
                 new SecurityDataFilter(),
                 new SecurityPriceVariationModel(),
                 currencyConverter,
-                registeredTypes
+                registeredTypes,
+                Securities.MarginInterestRateModel.Null
                 )
         {
             BuyingPowerModel = new FutureMarginModel(0, this);
             // for now all futures are cash settled as we don't allow underlying (Live Cattle?) to be posted on the account
             SettlementType = SettlementType.Cash;
             Holdings = new FutureHolding(this, currencyConverter);
-            _symbolProperties = symbolProperties;
-            SetFilter(TimeSpan.Zero, TimeSpan.Zero);
+            ContractFilter = new EmptyContractFilter();
             Underlying = underlying;
         }
-
-        // save off a strongly typed version of symbol properties
-        private readonly SymbolProperties _symbolProperties;
 
         /// <summary>
         /// Returns true if this is the future chain security, false if it is a specific future contract

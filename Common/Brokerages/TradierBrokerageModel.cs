@@ -28,6 +28,14 @@ namespace QuantConnect.Brokerages
     /// </summary>
     public class TradierBrokerageModel : DefaultBrokerageModel
     {
+        private readonly HashSet<OrderType> _supportedOrderTypes = new HashSet<OrderType>
+        {
+            OrderType.Limit,
+            OrderType.Market,
+            OrderType.StopMarket,
+            OrderType.StopLimit
+        };
+
         private static readonly EquityExchange EquityExchange =
             new EquityExchange(MarketHoursDatabase.FromDataFolder().GetExchangeHours(Market.USA, null, SecurityType.Equity));
 
@@ -56,21 +64,19 @@ namespace QuantConnect.Brokerages
         {
             message = null;
 
-            var securityType = order.SecurityType;
-            if (securityType != SecurityType.Equity && securityType != SecurityType.Option)
+            if (!_supportedOrderTypes.Contains(order.Type))
             {
                 message = new BrokerageMessageEvent(BrokerageMessageType.Warning, "NotSupported",
-                    "This model only supports equities and options."
-                );
+                    Messages.DefaultBrokerageModel.UnsupportedOrderType(this, order, _supportedOrderTypes));
 
                 return false;
             }
 
-            if (order.Type == OrderType.MarketOnOpen || order.Type == OrderType.MarketOnClose)
+            var securityType = order.SecurityType;
+            if (securityType != SecurityType.Equity && securityType != SecurityType.Option)
             {
                 message = new BrokerageMessageEvent(BrokerageMessageType.Warning, "NotSupported",
-                    "Tradier brokerage only supports Market orders. MarketOnOpen and MarketOnClose orders not supported."
-                );
+                    Messages.TradierBrokerageModel.UnsupportedSecurityType);
 
                 return false;
             }
@@ -78,8 +84,7 @@ namespace QuantConnect.Brokerages
             if (!CanExecuteOrder(security, order))
             {
                 message = new BrokerageMessageEvent(BrokerageMessageType.Warning, "ExtendedMarket",
-                    "Tradier does not support extended market hours trading.  Your order will be processed at market open."
-                );
+                    Messages.TradierBrokerageModel.ExtendedMarketHoursTradingNotSupported);
             }
 
             // tradier order limits
@@ -102,8 +107,7 @@ namespace QuantConnect.Brokerages
             if (request.Quantity != null && request.Quantity != order.Quantity)
             {
                 message = new BrokerageMessageEvent(BrokerageMessageType.Warning, "UpdateRejected",
-                    "Tradier does not support updating order quantities."
-                );
+                    Messages.TradierBrokerageModel.OrderQuantityUpdateNotSupported);
 
                 return false;
             }
@@ -150,7 +154,7 @@ namespace QuantConnect.Brokerages
             var splitFactor = split.SplitFactor;
             if (splitFactor > 1.0m)
             {
-                tickets.ForEach(ticket => ticket.Cancel("Tradier Brokerage cancels open orders on reverse split symbols"));
+                tickets.ForEach(ticket => ticket.Cancel(Messages.TradierBrokerageModel.OpenOrdersCancelOnReverseSplitSymbols));
             }
             else
             {

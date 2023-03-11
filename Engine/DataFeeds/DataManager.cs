@@ -21,6 +21,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using QuantConnect.Data;
 using QuantConnect.Data.Auxiliary;
+using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Interfaces;
 using QuantConnect.Logging;
@@ -182,6 +183,11 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 subscription.AddSubscriptionRequest(request);
                 // only result true if the existing subscription is internal, we actually added something from the users perspective
                 return subscription.Configuration.IsInternalFeed;
+            }
+
+            if (request.Configuration.SecurityType == SecurityType.IndexOption && request.Configuration.Resolution == Resolution.Daily)
+            {
+                throw new InvalidOperationException($"{Resolution.Daily} resolution is currently not supported for {SecurityType.IndexOption}, please use {Resolution.Hour} instead");
             }
 
             // before adding the configuration to the data feed let's assert it's valid
@@ -520,6 +526,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// <param name="resolution">The resolution of the data requested</param>
         /// <param name="isCanonical">Indicates whether the security is Canonical (future and options)</param>
         /// <returns>Types that should be added to the <see cref="SubscriptionDataConfig" /></returns>
+        /// <remarks>TODO: data type additions are very related to ticktype and should be more generic/independent of each other</remarks>
         public List<Tuple<Type, TickType>> LookupSubscriptionConfigDataTypes(
             SecurityType symbolSecurityType,
             Resolution resolution,
@@ -535,8 +542,14 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 // Equities will only look for trades in case of low resolutions.
                 .Where(tickType => LeanData.IsValidConfiguration(symbolSecurityType, resolution, tickType));
 
-            return availableDataType
+            var result = availableDataType
                 .Select(tickType => new Tuple<Type, TickType>(LeanData.GetDataType(resolution, tickType), tickType)).ToList();
+
+            if(symbolSecurityType == SecurityType.CryptoFuture)
+            {
+                result.Add(new Tuple<Type, TickType>(typeof(MarginInterestRate), TickType.Quote));
+            }
+            return result;
         }
 
         /// <summary>

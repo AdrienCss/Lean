@@ -53,8 +53,8 @@ namespace QuantConnect.Packets
             IDictionary<string, string> runtimeStatistics,
             List<OrderEvent> orderEvents,
             IDictionary<string, string> serverStatistics = null,
-            AlphaRuntimeStatistics alphaRuntimeStatistics = null,
-            AlgorithmConfiguration algorithmConfiguration = null)
+            AlgorithmConfiguration algorithmConfiguration = null,
+            IDictionary<string, string> state = null)
         {
             Charts = charts;
             Orders = orders;
@@ -65,8 +65,8 @@ namespace QuantConnect.Packets
             RuntimeStatistics = runtimeStatistics;
             OrderEvents = orderEvents;
             ServerStatistics = serverStatistics ?? OS.GetServerStatistics();
-            AlphaRuntimeStatistics = alphaRuntimeStatistics;
             AlgorithmConfiguration = algorithmConfiguration;
+            State = state;
         }
     }
 }

@@ -45,14 +45,14 @@ namespace QuantConnect.Python
         /// Initialize python.
         ///
         /// In some cases, we might not need to call BeginAllowThreads, like when we're running
-        /// in a python or non-threaded environment. 
+        /// in a python or non-threaded environment.
         /// In those cases, we can set the beginAllowThreads parameter to false.
         /// </summary>
         public static void Initialize(bool beginAllowThreads = true)
         {
             if (!_isInitialized)
             {
-                Log.Trace("PythonInitializer.Initialize(): start...");
+                Log.Trace($"PythonInitializer.Initialize(): {Messages.PythonInitializer.Start}...");
                 PythonEngine.PythonHome = @"C:\Users\adrie\anaconda3\envs\PythonNet"; // Added myself PythonEngine
                 PythonEngine.Initialize();
 
@@ -67,7 +67,7 @@ namespace QuantConnect.Python
                 ConfigurePythonPaths();
 
                 TryInitPythonVirtualEnvironment();
-                Log.Trace("PythonInitializer.Initialize(): ended");
+                Log.Trace($"PythonInitializer.Initialize(): {Messages.PythonInitializer.Ended}");
             }
         }
 
@@ -78,7 +78,7 @@ namespace QuantConnect.Python
         {
             if (_isInitialized)
             {
-                Log.Trace("PythonInitializer.Shutdown(): start");
+                Log.Trace($"PythonInitializer.Shutdown(): {Messages.PythonInitializer.Start}");
                 _isInitialized = false;
 
                 try
@@ -91,7 +91,7 @@ namespace QuantConnect.Python
                     Log.Error(ex);
                 }
 
-                Log.Trace("PythonInitializer.Shutdown(): ended");
+                Log.Trace($"PythonInitializer.Shutdown(): {Messages.PythonInitializer.Ended}");
             }
         }
 
@@ -108,7 +108,7 @@ namespace QuantConnect.Python
 
             // Add these paths to our pending additions
             _pendingPathAdditions.AddRange(paths.Where(x => !_pendingPathAdditions.Contains(x)));
-            
+
             if (_isInitialized)
             {
                 using (Py.GIL())
@@ -154,7 +154,7 @@ namespace QuantConnect.Python
 
         /// <summary>
         /// Adds the algorithm location to the python path.
-        /// This will make sure that <see cref="AddPythonPaths" /> keeps the algorithm location path 
+        /// This will make sure that <see cref="AddPythonPaths" /> keeps the algorithm location path
         /// at the beginning of the pythonpath.
         /// </summary>
         public static void AddAlgorithmLocationPath(string algorithmLocation)
@@ -166,7 +166,8 @@ namespace QuantConnect.Python
 
             if (!Directory.Exists(algorithmLocation))
             {
-                Log.Error($"PythonInitializer.AddAlgorithmLocationPath(): Unable to find algorithm location path: {algorithmLocation}.");
+                Log.Error($@"PythonInitializer.AddAlgorithmLocationPath(): {
+                    Messages.PythonInitializer.UnableToLocateAlgorithm(algorithmLocation)}");
                 return;
             }
 
@@ -198,7 +199,8 @@ namespace QuantConnect.Python
 
             if(!Directory.Exists(pathToVirtualEnv))
             {
-                Log.Error($"PythonIntializer.ActivatePythonVirtualEnvironment(): Path {pathToVirtualEnv} to virtual environment does not exist");
+                Log.Error($@"PythonIntializer.ActivatePythonVirtualEnvironment(): {
+                    Messages.PythonInitializer.VirutalEnvironmentNotFound(pathToVirtualEnv)}");
                 return false;
             }
 
@@ -226,11 +228,13 @@ namespace QuantConnect.Python
             if(!includeSystemPackages.HasValue)
             {
                 includeSystemPackages = true;
-                Log.Error($"PythonIntializer.ActivatePythonVirtualEnvironment(): virtual env '{pathToVirtualEnv}'. Failed to find system packages configuration. ConfigFile.Exits: {configFile.Exists}. Will default to true.");
+                Log.Error($@"PythonIntializer.ActivatePythonVirtualEnvironment(): {
+                    Messages.PythonInitializer.FailedToFindSystemPackagesConfiguration(pathToVirtualEnv, configFile)}");
             }
             else
             {
-                Log.Trace($"PythonIntializer.ActivatePythonVirtualEnvironment(): virtual env '{pathToVirtualEnv}'. Will use system packages: {includeSystemPackages.Value}");
+                Log.Trace($@"PythonIntializer.ActivatePythonVirtualEnvironment(): {
+                    Messages.PythonInitializer.SystemPackagesConfigurationFound(pathToVirtualEnv, includeSystemPackages.Value)}");
             }
 
             if (!includeSystemPackages.Value)
@@ -312,7 +316,7 @@ namespace QuantConnect.Python
                 var pathExists = Directory.Exists(path);
                 if (!pathExists)
                 {
-                    Log.Error($"PythonInitializer.ConfigurePythonPaths(): Unable to find python path: {path}. Skipping.");
+                    Log.Error($"PythonInitializer.ConfigurePythonPaths(): {Messages.PythonInitializer.PythonPathNotFound(path)}");
                 }
 
                 return pathExists;
