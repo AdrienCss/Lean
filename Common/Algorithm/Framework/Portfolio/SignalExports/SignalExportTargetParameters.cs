@@ -13,20 +13,24 @@
  * limitations under the License.
 */
 
-namespace QuantConnect.Data.Shortable
+using QuantConnect.Interfaces;
+using System.Collections.Generic;
+
+namespace QuantConnect.Algorithm.Framework.Portfolio.SignalExports
 {
     /// <summary>
-    /// Defines the default Atreyu Shortable Provider
+    /// Class to wrap objects needed to send signals to the different 3rd party API's
     /// </summary>
-    public class AtreyuShortableProvider : LocalDiskShortableProvider
+    public class SignalExportTargetParameters
     {
         /// <summary>
-        /// Initialize an instance of <see cref="AtreyuShortableProvider"/>
+        /// List of portfolio targets to be sent to some 3rd party API
         /// </summary>
-        /// <param name="securityType">SecurityType to read data</param>
-        /// <param name="market">Market to read ETB data</param>
-        public AtreyuShortableProvider(SecurityType securityType, string market) : base(securityType, "atreyu", market)
-        {
-        }
+        public List<PortfolioTarget> Targets { get; set; }
+
+        /// <summary>
+        /// Algorithm being ran
+        /// </summary>
+        public IAlgorithm Algorithm { get; set; }
     }
 }

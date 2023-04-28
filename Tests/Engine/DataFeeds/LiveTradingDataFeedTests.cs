@@ -171,8 +171,8 @@ namespace QuantConnect.Tests.Engine.DataFeeds
                     var result = LiveTradingResultHandler.GetHoldings(_algorithm.Securities.Values, _algorithm.SubscriptionManager.SubscriptionDataConfigService);
                     // old future mapped contract is removed
                     Assert.AreEqual(2, result.Count);
-                    Assert.IsTrue(result.TryGetValue(es.Symbol.Value, out var holding));
-                    Assert.IsTrue(result.TryGetValue(es.Mapped.Value, out holding));
+                    Assert.IsTrue(result.TryGetValue(es.Symbol.ID.ToString(), out var holding));
+                    Assert.IsTrue(result.TryGetValue(es.Mapped.ID.ToString(), out holding));
 
                     Assert.AreEqual(0, LiveTradingResultHandler.GetHoldings(_algorithm.Securities.Values, _algorithm.SubscriptionManager.SubscriptionDataConfigService, onlyInvested: true).Count);
 
@@ -225,8 +225,8 @@ namespace QuantConnect.Tests.Engine.DataFeeds
                     var result = LiveTradingResultHandler.GetHoldings(_algorithm.Securities.Values, _algorithm.SubscriptionManager.SubscriptionDataConfigService);
 
                     Assert.AreEqual(2, result.Count);
-                    Assert.IsTrue(result.TryGetValue(es.Symbol.Value, out var holding));
-                    Assert.IsTrue(result.TryGetValue(es.Mapped.Value, out holding));
+                    Assert.IsTrue(result.TryGetValue(es.Symbol.ID.ToString(), out var holding));
+                    Assert.IsTrue(result.TryGetValue(es.Mapped.ID.ToString(), out holding));
 
                     Assert.AreEqual(0, LiveTradingResultHandler.GetHoldings(_algorithm.Securities.Values, _algorithm.SubscriptionManager.SubscriptionDataConfigService, onlyInvested: true).Count);
 
@@ -844,7 +844,7 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             var feed = RunDataFeed();
             for (int i = 0; i < 100; i++)
             {
-                _algorithm.AddData<CustomMockedFileBaseData>((100 + i).ToStringInvariant(), Resolution.Second, fillDataForward: false);
+                _algorithm.AddData<CustomMockedFileBaseData>((100 + i).ToStringInvariant(), Resolution.Second, fillForward: false);
             }
 
             int count = 0;
@@ -892,7 +892,7 @@ namespace QuantConnect.Tests.Engine.DataFeeds
 
             var feed = RunDataFeed();
 
-            _algorithm.AddData<TestCustomData>("Pinocho", Resolution.Minute, fillDataForward: false);
+            _algorithm.AddData<TestCustomData>("Pinocho", Resolution.Minute, fillForward: false);
 
             TestCustomData.ReturnNull = returnsNull;
             TestCustomData.ThrowException = throwsException;
@@ -2308,12 +2308,12 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             {
                 case SecurityType.Base:
                     algorithm.AddEquity(symbol.Underlying.Value, resolution, symbol.ID.Market,
-                        fillDataForward: false);
+                        fillForward: false);
 
                     if (customDataType.RequiresMapping())
                     {
                         security = algorithm.AddData<T>(symbol.Value, resolution,
-                            fillDataForward: false);
+                            fillForward: false);
                     }
                     else
                     {
@@ -2322,11 +2322,11 @@ namespace QuantConnect.Tests.Engine.DataFeeds
                     break;
 
                 case SecurityType.Future:
-                    security = algorithm.AddFutureContract(symbol, resolution, fillDataForward: false, extendedMarketHours: true);
+                    security = algorithm.AddFutureContract(symbol, resolution, fillForward: false, extendedMarketHours: true);
                     break;
 
                 case SecurityType.Option:
-                    security = algorithm.AddOptionContract(symbol, resolution, fillDataForward: false);
+                    security = algorithm.AddOptionContract(symbol, resolution, fillForward: false);
                     break;
 
                 default:
@@ -2907,8 +2907,8 @@ namespace QuantConnect.Tests.Engine.DataFeeds
                 {
                     if (securityType == SecurityType.Future)
                     {
-                        // -1 to remove canonical since it's not part of the chain
-                        Assert.AreEqual(futureSymbols.Count - 1, futureContractCount);
+                        // -2 to remove canonical & internal since it's not part of the chain
+                        Assert.AreEqual(futureSymbols.Count - 2, futureContractCount);
 
                         foreach (var symbol in futureSymbols)
                         {

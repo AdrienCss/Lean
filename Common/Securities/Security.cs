@@ -29,6 +29,7 @@ using Python.Runtime;
 using QuantConnect.Data.Fundamental;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Interfaces;
+using QuantConnect.Data.Shortable;
 
 namespace QuantConnect.Securities
 {
@@ -53,7 +54,7 @@ namespace QuantConnect.Securities
         /// <summary>
         /// This securities <see cref="IShortableProvider"/>
         /// </summary>
-        protected IShortableProvider ShortableProvider { get; private set; }
+        public IShortableProvider ShortableProvider { get; private set; }
 
         /// <summary>
         /// A null security leverage value
@@ -425,6 +426,7 @@ namespace QuantConnect.Securities
             MarginInterestRateModel = marginInterestRateModel;
             Holdings = new SecurityHolding(this, currencyConverter);
             Data = new DynamicSecurityData(registeredTypesProvider, Cache);
+            ShortableProvider = new NullShortableProvider();
 
             UpdateSubscriptionProperties();
         }
@@ -624,7 +626,7 @@ namespace QuantConnect.Securities
             if (data == null) return;
             Cache.AddData(data);
 
-            UpdateConsumersMarketPrice(data);
+            UpdateMarketPrice(data);
         }
 
         /// <summary>
@@ -639,7 +641,7 @@ namespace QuantConnect.Securities
         {
             Cache.AddDataList(data, dataType, containsFillForwardData);
 
-            UpdateConsumersMarketPrice(data[data.Count - 1]);
+            UpdateMarketPrice(data[data.Count - 1]);
         }
 
         /// <summary>
@@ -831,12 +833,68 @@ namespace QuantConnect.Securities
         }
 
         /// <summary>
+        /// Set Python Shortable Provider for this <see cref="Security"/>
+        /// </summary>
+        /// <param name="pyObject">Python class that represents a custom shortable provider</param>
+        public void SetShortableProvider(PyObject pyObject)
+        {
+            if (pyObject.TryConvert<IShortableProvider>(out var shortableProvider))
+            {
+                SetShortableProvider(shortableProvider);
+            }
+            else if (Extensions.TryConvert<IShortableProvider>(pyObject, out _, allowPythonDerivative: true))
+            {
+                SetShortableProvider(new ShortableProviderPythonWrapper(pyObject));
+            }
+            else
+            {
+                using (Py.GIL())
+                {
+                    throw new Exception($"SetShortableProvider: {pyObject.Repr()} is not a valid argument");
+                }
+            }
+        }
+
+        /// <summary>
         /// Set Shortable Provider for this <see cref="Security"/>
         /// </summary>
         /// <param name="shortableProvider">Provider to use</param>
         public void SetShortableProvider(IShortableProvider shortableProvider)
         {
             ShortableProvider = shortableProvider;
+        }
+
+        /// <summary>
+        /// Set Security Data Filter
+        /// </summary>
+        /// <param name="pyObject">Python class that represents a custom Security Data Filter</param>
+        /// <exception cref="ArgumentException"></exception>
+        public void SetDataFilter(PyObject pyObject)
+        {
+            if (pyObject.TryConvert<ISecurityDataFilter>(out var dataFilter))
+            {
+                SetDataFilter(dataFilter);
+            }
+            else if (Extensions.TryConvert<ISecurityDataFilter>(pyObject, out _, allowPythonDerivative: true))
+            {
+                SetDataFilter(new SecurityDataFilterPythonWrapper(pyObject));
+            }
+            else
+            {
+                using (Py.GIL())
+                {
+                    throw new ArgumentException($"SetDataFilter: {pyObject.Repr()} is not a valid argument");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Set Security Data Filter
+        /// </summary>
+        /// <param name="dataFilter">Security Data Filter</param>
+        public void SetDataFilter(ISecurityDataFilter dataFilter)
+        {
+            DataFilter = dataFilter;
         }
 
         /// <summary>
@@ -916,6 +974,17 @@ namespace QuantConnect.Securities
             IsFillDataForward = _subscriptionsBag.Any(x => x.FillDataForward);
             IsExtendedMarketHours = _subscriptionsBag.Any(x => x.ExtendedMarketHours);
             RefreshDataNormalizationModeProperty();
+        }
+
+        /// <summary>
+        /// Updates consumers market price. It will do nothing if the passed data type is auxiliary.
+        /// </summary>
+        private void UpdateMarketPrice(BaseData data)
+        {
+            if (data.DataType != MarketDataType.Auxiliary)
+            {
+                UpdateConsumersMarketPrice(data);
+            }
         }
     }
 }

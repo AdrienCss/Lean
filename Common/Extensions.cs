@@ -49,7 +49,6 @@ using QuantConnect.Scheduling;
 using QuantConnect.Securities;
 using QuantConnect.Util;
 using Timer = System.Timers.Timer;
-using static QuantConnect.StringExtensions;
 using Microsoft.IO;
 using NodaTime.TimeZones;
 using QuantConnect.Configuration;
@@ -66,10 +65,11 @@ namespace QuantConnect
     /// </summary>
     public static class Extensions
     {
+        private static readonly Dictionary<string, bool> _emptyDirectories = new ();
         private static readonly HashSet<string> InvalidSecurityTypes = new HashSet<string>();
         private static readonly Regex DateCheck = new Regex(@"\d{8}", RegexOptions.Compiled);
         private static RecyclableMemoryStreamManager MemoryManager = new RecyclableMemoryStreamManager();
-        private static readonly int DataUpdatePeriod = Config.GetInt("api-data-update-period", 1);
+        private static readonly int DataUpdatePeriod = Config.GetInt("downloader-data-update-period", 7);
 
         private static readonly Dictionary<IntPtr, PythonActivator> PythonActivators
             = new Dictionary<IntPtr, PythonActivator>();
@@ -123,6 +123,43 @@ namespace QuantConnect
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Helper method to check if a directory exists and is not empty
+        /// </summary>
+        /// <param name="directoryPath">The path to check</param>
+        /// <returns>True if the directory does not exist or is empty</returns>
+        /// <remarks>Will cache results</remarks>
+        public static bool IsDirectoryEmpty(this string directoryPath)
+        {
+            lock (_emptyDirectories)
+            {
+                if(!_emptyDirectories.TryGetValue(directoryPath, out var result))
+                {
+                    // is empty unless it exists and it has at least 1 file or directory in it
+                    result = true;
+                    if (Directory.Exists(directoryPath))
+                    {
+                        try
+                        {
+                            result = !Directory.EnumerateFileSystemEntries(directoryPath).Any();
+                        }
+                        catch (Exception exception)
+                        {
+                            Log.Error(exception);
+                        }
+                    }
+
+                    _emptyDirectories[directoryPath] = result;
+                    if (result)
+                    {
+                        Log.Trace($"Extensions.IsDirectoryEmpty(): directory '{directoryPath}' not found or empty");
+                    }
+                }
+
+                return result;
+            }
         }
 
         /// <summary>
@@ -965,66 +1002,6 @@ namespace QuantConnect
         }
 
         /// <summary>
-        /// Removes the specified element to the collection with the specified key. If the entry's count drops to
-        /// zero, then the entry will be removed.
-        /// </summary>
-        /// <typeparam name="TKey">The key type</typeparam>
-        /// <typeparam name="TElement">The collection element type</typeparam>
-        /// <param name="dictionary">The source dictionary to be added to</param>
-        /// <param name="key">The key</param>
-        /// <param name="element">The element to be added</param>
-        public static ImmutableDictionary<TKey, ImmutableHashSet<TElement>> Remove<TKey, TElement>(
-            this ImmutableDictionary<TKey, ImmutableHashSet<TElement>> dictionary,
-            TKey key,
-            TElement element
-            )
-        {
-            ImmutableHashSet<TElement> set;
-            if (!dictionary.TryGetValue(key, out set))
-            {
-                return dictionary;
-            }
-
-            set = set.Remove(element);
-            if (set.Count == 0)
-            {
-                return dictionary.Remove(key);
-            }
-
-            return dictionary.SetItem(key, set);
-        }
-
-        /// <summary>
-        /// Removes the specified element to the collection with the specified key. If the entry's count drops to
-        /// zero, then the entry will be removed.
-        /// </summary>
-        /// <typeparam name="TKey">The key type</typeparam>
-        /// <typeparam name="TElement">The collection element type</typeparam>
-        /// <param name="dictionary">The source dictionary to be added to</param>
-        /// <param name="key">The key</param>
-        /// <param name="element">The element to be added</param>
-        public static ImmutableSortedDictionary<TKey, ImmutableHashSet<TElement>> Remove<TKey, TElement>(
-            this ImmutableSortedDictionary<TKey, ImmutableHashSet<TElement>> dictionary,
-            TKey key,
-            TElement element
-            )
-        {
-            ImmutableHashSet<TElement> set;
-            if (!dictionary.TryGetValue(key, out set))
-            {
-                return dictionary;
-            }
-
-            set = set.Remove(element);
-            if (set.Count == 0)
-            {
-                return dictionary.Remove(key);
-            }
-
-            return dictionary.SetItem(key, set);
-        }
-
-        /// <summary>
         /// Adds the specified Tick to the Ticks collection. If an entry does not exist for the specified key then one will be created.
         /// </summary>
         /// <param name="dictionary">The ticks dictionary</param>
@@ -1036,8 +1013,7 @@ namespace QuantConnect
             List<Tick> list;
             if (!dictionary.TryGetValue(key, out list))
             {
-                list = new List<Tick>(1);
-                dictionary.Add(key, list);
+                dictionary[key] = list = new List<Tick>(1);
             }
             list.Add(tick);
         }
@@ -1566,16 +1542,16 @@ namespace QuantConnect
         /// <param name="dateTime">Time to be rounded down</param>
         /// <param name="interval">Timespan interval to round to.</param>
         /// <param name="exchangeHours">The exchange hours to determine open times</param>
-        /// <param name="extendedMarket">True for extended market hours, otherwise false</param>
+        /// <param name="extendedMarketHours">True for extended market hours, otherwise false</param>
         /// <returns>Rounded datetime</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static DateTime ExchangeRoundDown(this DateTime dateTime, TimeSpan interval, SecurityExchangeHours exchangeHours, bool extendedMarket)
+        public static DateTime ExchangeRoundDown(this DateTime dateTime, TimeSpan interval, SecurityExchangeHours exchangeHours, bool extendedMarketHours)
         {
             // can't round against a zero interval
             if (interval == TimeSpan.Zero) return dateTime;
 
             var rounded = dateTime.RoundDown(interval);
-            while (!exchangeHours.IsOpen(rounded, rounded + interval, extendedMarket))
+            while (!exchangeHours.IsOpen(rounded, rounded + interval, extendedMarketHours))
             {
                 rounded -= interval;
             }
@@ -1591,10 +1567,10 @@ namespace QuantConnect
         /// <param name="interval">Timespan interval to round to.</param>
         /// <param name="exchangeHours">The exchange hours to determine open times</param>
         /// <param name="roundingTimeZone">The time zone to perform the rounding in</param>
-        /// <param name="extendedMarket">True for extended market hours, otherwise false</param>
+        /// <param name="extendedMarketHours">True for extended market hours, otherwise false</param>
         /// <returns>Rounded datetime</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static DateTime ExchangeRoundDownInTimeZone(this DateTime dateTime, TimeSpan interval, SecurityExchangeHours exchangeHours, DateTimeZone roundingTimeZone, bool extendedMarket)
+        public static DateTime ExchangeRoundDownInTimeZone(this DateTime dateTime, TimeSpan interval, SecurityExchangeHours exchangeHours, DateTimeZone roundingTimeZone, bool extendedMarketHours)
         {
             // can't round against a zero interval
             if (interval == TimeSpan.Zero) return dateTime;
@@ -1603,7 +1579,7 @@ namespace QuantConnect
             var roundedDateTimeInRoundingTimeZone = dateTimeInRoundingTimeZone.RoundDown(interval);
             var rounded = roundedDateTimeInRoundingTimeZone.ConvertTo(roundingTimeZone, exchangeHours.TimeZone);
 
-            while (!exchangeHours.IsOpen(rounded, rounded + interval, extendedMarket))
+            while (!exchangeHours.IsOpen(rounded, rounded + interval, extendedMarketHours))
             {
                 // Will subtract interval to 'dateTime' in the roundingTimeZone (using the same value type instance) to avoid issues with daylight saving time changes.
                 // GH issue 2368: subtracting interval to 'dateTime' in exchangeHours.TimeZone and converting back to roundingTimeZone
@@ -3288,9 +3264,10 @@ namespace QuantConnect
             {
                 case DataNormalizationMode.Adjusted:
                 case DataNormalizationMode.SplitAdjusted:
-                    return data?.Scale(TimesFactor, 1/factor, factor, decimal.Zero);
+                case DataNormalizationMode.ScaledRaw:
+                    return data?.Scale(TimesFactor, 1 / factor, factor, decimal.Zero);
                 case DataNormalizationMode.TotalReturn:
-                    return data.Scale(TimesFactor, 1/factor, factor, sumOfDividends);
+                    return data.Scale(TimesFactor, 1 / factor, factor, sumOfDividends);
 
                 case DataNormalizationMode.BackwardsRatio:
                     return data.Scale(TimesFactor, 1, factor, decimal.Zero);

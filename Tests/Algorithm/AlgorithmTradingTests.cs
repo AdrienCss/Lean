@@ -1577,19 +1577,34 @@ namespace QuantConnect.Tests.Algorithm
             }
         }
 
-        private class TestShortableProvider : IShortableProvider
+        [Test]
+        public void MarketOnCloseOrdersSubmissionTimeCheck([Values] bool beforeLatestSubmissionTime)
         {
-            public Dictionary<Symbol, long> AllShortableSymbols(DateTime localTime)
-            {
-                return new Dictionary<Symbol, long>
-                {
-                    { Symbols.MSFT, 1000 }
-                };
-            }
+            var algo = GetAlgorithm(out _, 1, 0);
+            algo.SetTimeZone(TimeZones.London);
 
-            public long? ShortableQuantity(Symbol symbol, DateTime localTime)
+            var es20h20 = algo.AddFutureContract(
+                Symbol.CreateFuture(Futures.Indices.SP500EMini, Market.CME, new DateTime(2020, 3, 20)),
+                Resolution.Minute);
+            es20h20.SetMarketPrice(new Tick(algo.Time, es20h20.Symbol, 1, 1));
+
+            var dateTimeInExchangeTimeZone = algo.Time.Date + new TimeSpan(17, 0, 0) - MarketOnCloseOrder.SubmissionTimeBuffer;
+            if (!beforeLatestSubmissionTime)
             {
-                return 1000;
+                dateTimeInExchangeTimeZone += TimeSpan.FromSeconds(1);
+            }
+            algo.SetDateTime(dateTimeInExchangeTimeZone.ConvertTo(es20h20.Exchange.TimeZone, algo.TimeZone));
+
+            var ticket = algo.MarketOnCloseOrder(es20h20.Symbol, 1);
+
+            if (!beforeLatestSubmissionTime)
+            {
+                Assert.AreEqual(OrderStatus.Invalid, ticket.Status);
+                Assert.AreEqual(OrderResponseErrorCode.MarketOnCloseOrderTooLate, ticket.SubmitRequest.Response.ErrorCode);
+            }
+            else
+            {
+                Assert.AreNotEqual(OrderStatus.Invalid, ticket.Status, ticket.SubmitRequest.Response.ErrorMessage);
             }
         }
 

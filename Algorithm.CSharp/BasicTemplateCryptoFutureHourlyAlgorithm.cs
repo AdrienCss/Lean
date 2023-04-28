@@ -44,7 +44,7 @@ namespace QuantConnect.Algorithm.CSharp
             SetStartDate(2022, 12, 13);
             SetEndDate(2022, 12, 13);
 
-            SetTimeZone(NodaTime.DateTimeZone.Utc);
+            SetTimeZone(TimeZones.Utc);
 
             try
             {
@@ -191,7 +191,7 @@ namespace QuantConnect.Algorithm.CSharp
         /// <summary>
         /// This is used by the regression test system to indicate which languages this algorithm is written in.
         /// </summary>
-        public Language[] Languages { get; } = { Language.CSharp };
+        public Language[] Languages { get; } = { Language.CSharp, Language.Python };
 
         /// <summary>
         /// Data Points count of all timeslices of algorithm
@@ -228,10 +228,10 @@ namespace QuantConnect.Algorithm.CSharp
             {"Tracking Error", "0"},
             {"Treynor Ratio", "0"},
             {"Total Fees", "$0.61"},
-            {"Estimated Strategy Capacity", "$520000000.00"},
+            {"Estimated Strategy Capacity", "$370000000.00"},
             {"Lowest Capacity Asset", "ADAUSDT 18R"},
             {"Portfolio Turnover", "0.12%"},
-            {"OrderListHash", "17f99ecc3f35f94fff1ea5694c40d32c"}
+            {"OrderListHash", "d2c6198197a4d18fa0a81f5933d935a6"}
         };
     }
 }

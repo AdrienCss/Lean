@@ -785,7 +785,14 @@ namespace QuantConnect.Algorithm
                     limitPrice = leg.OrderPrice.Value;
                     orderType = OrderType.ComboLegLimit;
                 }
-                var request = CreateSubmitOrderRequest(orderType, security, leg.Quantity, tag, orderProperties ?? DefaultOrderProperties?.Clone(), groupOrderManager: groupOrderManager, limitPrice: limitPrice);
+                var request = CreateSubmitOrderRequest(
+                    orderType,
+                    security,
+                    ((decimal)leg.Quantity).GetOrderLegGroupQuantity(groupOrderManager),
+                    tag,
+                    orderProperties ?? DefaultOrderProperties?.Clone(),
+                    groupOrderManager: groupOrderManager,
+                    limitPrice: limitPrice);
 
                 // we execture pre order checks for all requests before submitting, so that if anything fails we are not left with half submitted combo orders
                 var response = PreOrderChecks(request);
@@ -1021,8 +1028,10 @@ namespace QuantConnect.Algorithm
                 var nextMarketClose = security.Exchange.Hours.GetNextMarketClose(security.LocalTime, false);
 
                 // Enforce MarketOnClose submission buffer
-                var latestSubmissionTime = nextMarketClose.Subtract(Orders.MarketOnCloseOrder.SubmissionTimeBuffer);
-                if (Time > latestSubmissionTime)
+                var latestSubmissionTimeUtc = nextMarketClose
+                    .ConvertToUtc(security.Exchange.TimeZone)
+                    .Subtract(Orders.MarketOnCloseOrder.SubmissionTimeBuffer);
+                if (UtcTime > latestSubmissionTimeUtc)
                 {
                     // Tell user the required buffer on these orders, also inform them it can be changed for special cases.
                     // Default buffer is 15.5 minutes because with minute data a user will receive the 3:44->3:45 bar at 3:45,
@@ -1152,7 +1161,7 @@ namespace QuantConnect.Algorithm
                 LiquidateExistingHoldings(targets.Select(x => x.Symbol).ToHashSet(), tag, orderProperties);
             }
 
-            foreach (var portfolioTarget in targets 
+            foreach (var portfolioTarget in targets
                 // we need to create targets with quantities for OrderTargetsByMarginImpact
                 .Select(target => new PortfolioTarget(target.Symbol, CalculateOrderQuantity(target.Symbol, target.Quantity)))
                 .OrderTargetsByMarginImpact(this, targetIsDelta:true))

@@ -59,18 +59,61 @@ namespace QuantConnect.Securities.Positions
         /// <returns>True if this resolver can group the specified positions, otherwise false</returns>
         public bool TryGroup(IReadOnlyCollection<IPosition> newPositions, PositionGroupCollection currentPositions, out IPositionGroup @group)
         {
-            var impactedGroups = GetImpactedGroups(currentPositions, newPositions);
-            var positionsToConsiderInNewGroup = impactedGroups.SelectMany(positionGroup => positionGroup.Positions);
-
-            @group = GetPositionGroups(newPositions.Concat(positionsToConsiderInNewGroup)).Where(positionGroup =>
+            IEnumerable<IPosition> positions;
+            if (currentPositions.Count > 0)
             {
-                // from the resolved position groups we will take those which use our buying power model and which are related to the new positions to be executed
-                if (positionGroup.BuyingPowerModel.GetType() == typeof(OptionStrategyPositionGroupBuyingPowerModel))
+                var impactedGroups = GetImpactedGroups(currentPositions, newPositions);
+                var positionsToConsiderInNewGroup = impactedGroups.SelectMany(positionGroup => positionGroup.Positions);
+                positions = newPositions.Concat(positionsToConsiderInNewGroup);
+            }
+            else
+            {
+                if (newPositions.Count == 1)
                 {
-                    return newPositions.Any(position => positionGroup.TryGetPosition(position.Symbol, out position));
+                    // there's no existing position and there's only a single position, no strategy will match
+                    @group = null;
+                    return false;
                 }
-                return false;
-            }).FirstOrDefault();
+                positions = newPositions;
+            }
+
+            @group = GetPositionGroups(positions)
+                .Select(positionGroup =>
+                {
+                    if (positionGroup.Count == 0)
+                    {
+                        return positionGroup;
+                    }
+
+                    // from the resolved position groups we will take those which use our buying power model and which are related to the new positions to be executed
+                    if (positionGroup.BuyingPowerModel.GetType() == typeof(OptionStrategyPositionGroupBuyingPowerModel))
+                    {
+                        if (newPositions.Any(position => positionGroup.TryGetPosition(position.Symbol, out position)))
+                        {
+                            return positionGroup;
+                        }
+
+                        // When none of the new positions are contained in the position group,
+                        // it means that we are liquidating the assets in the new positions
+                        // but some other existing positions were considered as impacted groups.
+                        // Example:
+                        //   Buy(OptionStrategies.BullCallSpread(...), 1);
+                        //   Buy(OptionStrategies.BearPutSpread(...), 1);
+                        //   ...
+                        //   Sell(OptionStrategies.BullCallSpread(...), 1);
+                        //   Sell(OptionStrategies.BearPutSpread(...), 1);
+                        //   -----
+                        //   When attempting revert the bull call position group, the bear put group
+                        //   will be selected as impacted group, so the group will contain the put positions
+                        //   but not the call ones. In this case, we return an valid empty group because the
+                        //   liquidation is happening.
+                        return new PositionGroup(new PositionGroupKey(new OptionStrategyPositionGroupBuyingPowerModel(null), new List<IPosition>()));
+                    }
+
+                    return null;
+                })
+                .Where(positionGroup => positionGroup != null)
+                .FirstOrDefault();
 
             return @group != null;
         }
@@ -109,6 +152,12 @@ namespace QuantConnect.Securities.Positions
         /// <returns>An enumerable containing the position groups that could be impacted by the specified position changes</returns>
         public IEnumerable<IPositionGroup> GetImpactedGroups(PositionGroupCollection groups, IReadOnlyCollection<IPosition> positions)
         {
+            if(groups.Count == 0)
+            {
+                // there's no existing groups, nothing to impact
+                return Enumerable.Empty<IPositionGroup>();
+            }
+
             var symbolsSet = positions.Where(position => position.Symbol.SecurityType.HasOptions() || position.Symbol.SecurityType.IsOption())
                 .SelectMany(position =>
                 {
@@ -142,6 +191,15 @@ namespace QuantConnect.Securities.Positions
                 var contractMultiplier = (_securities[optionPosition.Symbol].SymbolProperties as OptionSymbolProperties)?.ContractUnitOfTrade ?? 100;
 
                 var optionPositionCollection = OptionPositionCollection.FromPositions(positionsByUnderlying, contractMultiplier);
+
+                if (optionPositionCollection.Count == 0 && positionsByUnderlying.Any())
+                {
+                    var resultingPositions = new List<IPosition>();
+                    var key = new PositionGroupKey(new OptionStrategyPositionGroupBuyingPowerModel(null), resultingPositions);
+                    // we could be liquidating there will be no position left!
+                    yield return new PositionGroup(key, new Dictionary<Symbol, IPosition>());
+                    yield break;
+                }
 
                 var matches = _strategyMatcher.MatchOnce(optionPositionCollection);
                 if (matches.Strategies.Count == 0)
