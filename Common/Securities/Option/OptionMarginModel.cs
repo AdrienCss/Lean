@@ -94,7 +94,8 @@ namespace QuantConnect.Securities.Option
         /// <returns>The maintenance margin required for the provided holdings quantity/cost/value</returns>
         public override MaintenanceMargin GetMaintenanceMargin(MaintenanceMarginParameters parameters)
         {
-            return parameters.AbsoluteHoldingsCost * GetMaintenanceMarginRequirement(parameters);
+            // Long options have zero maintenance margin requirement
+            return parameters.Quantity >= 0 ? 0 : parameters.AbsoluteHoldingsCost * GetMaintenanceMarginRequirement(parameters);
         }
 
         /// <summary>
@@ -109,7 +110,9 @@ namespace QuantConnect.Securities.Option
                         * security.SymbolProperties.ContractMultiplier
                         * security.Price
                         * quantity;
-            return new InitialMargin(value * GetMarginRequirement(security, quantity, value));
+
+            // Initial margin requirement for long options is only the premium that is paid upfront
+            return new OptionInitialMargin(parameters.Quantity >= 0 ? 0 : value * GetMarginRequirement(security, quantity, value), value);
         }
 
         /// <summary>
@@ -156,14 +159,19 @@ namespace QuantConnect.Securities.Option
             var underlyingValueRatio = multiplierRatio * quantityRatio * priceRatio;
 
             // calculating underlying security value less out-of-the-money amount
-            var amountOTM = option.Right == OptionRight.Call
-                ? Math.Max(0, option.StrikePrice - underlying.Close)
-                : Math.Max(0, underlying.Close - option.StrikePrice);
+            var amountOTM = option.OutOfTheMoneyAmount(underlying.Close);
             var priceRatioOTM = amountOTM / (absValue / quantityRatio);
             var underlyingValueRatioOTM = multiplierRatio * quantityRatio * priceRatioOTM;
 
+            var strikePriceRatio = option.StrikePrice / (absValue / quantityRatio);
+            strikePriceRatio = multiplierRatio * quantityRatio * strikePriceRatio;
+
+            var nakedMarginRequirement = option.Right == OptionRight.Call
+                ? NakedPositionMarginRequirement * underlyingValueRatio
+                : NakedPositionMarginRequirement * strikePriceRatio;
+
             return OptionMarginRequirement +
-                   Math.Abs(quantity) * Math.Max(NakedPositionMarginRequirement * underlyingValueRatio,
+                   Math.Abs(quantity) * Math.Max(nakedMarginRequirement,
                        NakedPositionMarginRequirementOtm * underlyingValueRatio - underlyingValueRatioOTM);
         }
     }

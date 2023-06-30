@@ -51,7 +51,7 @@ namespace QuantConnect.Algorithm.CSharp
                     var initialMargin = Portfolio.MarginRemaining;
 
                     MarketOrder(shortCall.Symbol, -5);
-                    AssertDefaultGroup(shortCall.Symbol, -5);
+                    AssertOptionStrategyIsPresent(OptionStrategyDefinitions.NakedCall.Name, 5);
                     MarketOrder(longCall.Symbol, 5);
                     var freeMarginPostTrade = Portfolio.MarginRemaining;
                     AssertOptionStrategyIsPresent(OptionStrategyDefinitions.BullCallSpread.Name, 5);
@@ -107,7 +107,7 @@ namespace QuantConnect.Algorithm.CSharp
             {"Tracking Error", "0"},
             {"Treynor Ratio", "0"},
             {"Total Fees", "$2.50"},
-            {"Estimated Strategy Capacity", "$10000000.00"},
+            {"Estimated Strategy Capacity", "$5500000.00"},
             {"Lowest Capacity Asset", "GOOCV WBGM95TAH2LI|GOOCV VP83T1ZUHROL"},
             {"Portfolio Turnover", "28.20%"},
             {"OrderListHash", "08b70d7179eef7e49cb2c94c01e4cde7"}

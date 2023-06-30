@@ -1582,6 +1582,7 @@ namespace QuantConnect.Tests.Algorithm
         {
             var algo = GetAlgorithm(out _, 1, 0);
             algo.SetTimeZone(TimeZones.London);
+            algo.SetDateTime(new DateTime(2023, 02, 16));
 
             var es20h20 = algo.AddFutureContract(
                 Symbol.CreateFuture(Futures.Indices.SP500EMini, Market.CME, new DateTime(2020, 3, 20)),
@@ -1612,11 +1613,13 @@ namespace QuantConnect.Tests.Algorithm
         {
             //Initialize algorithm
             var algo = new QCAlgorithm();
+            algo.Settings.MinimumOrderMarginPortfolioPercentage = 0;
             algo.SubscriptionManager.SetDataManager(new DataManagerStub(algo));
             algo.AddSecurity(SecurityType.Equity, "MSFT");
             algo.SetCash(100000);
             algo.SetFinishedWarmingUp();
             algo.Securities[Symbols.MSFT].FeeModel = new ConstantFeeModel(fee);
+            algo.SetLiveMode(false);
             _fakeOrderProcessor = new FakeOrderProcessor();
             algo.Transactions.SetOrderProcessor(_fakeOrderProcessor);
             msft = algo.Securities[Symbols.MSFT];

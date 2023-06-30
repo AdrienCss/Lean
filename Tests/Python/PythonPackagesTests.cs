@@ -25,6 +25,44 @@ namespace QuantConnect.Tests.Python
     public class PythonPackagesTests
     {
         [Test]
+        public void Langchain()
+        {
+            AssertCode(
+                @"
+from langchain.prompts import PromptTemplate
+
+def RunTest():
+    prompt = PromptTemplate.from_template(""What is a good name for a company that makes {product}?"")
+    prompt.format(product=""colorful socks"")");
+        }
+
+        [Test]
+        public void Rbeast()
+        {
+            AssertCode(
+                @"
+import Rbeast as rb
+
+def RunTest():
+    (Nile, Year) = rb.load_example('nile')
+    o = rb.beast(Nile, season = 'none')
+    rb.plot(o)");
+        }
+
+        [Test, Explicit("Needs to be run by itself to avoid hanging")]
+        public void Transformers()
+        {
+            AssertCode(
+                @"
+from transformers import pipeline
+
+def RunTest():
+    classifier = pipeline('sentiment-analysis')
+
+    classifier('We are very happy to introduce pipeline to the transformers repository.')");
+        }
+
+        [Test]
         public void Tick()
         {
             AssertCode(
@@ -504,7 +542,7 @@ def RunTest():
 import ignite
 
 def RunTest():
-    assert(ignite.__version__ == '0.4.11')"
+    assert(ignite.__version__ == '0.4.12')"
             );
         }
 
@@ -1136,9 +1174,10 @@ def RunTest():
 	print('Number of variables =', solver.NumVariables())");
         }
 
-        [Test]
+        [Test, Explicit("Installed in specific environment. Requires older torch")]
         public void Neuralprophet()
         {
+            PythonInitializer.ActivatePythonVirtualEnvironment("/Foundation-Pomegranate");
             AssertCode(
                 @"
 from neuralprophet import NeuralProphet
@@ -1235,11 +1274,61 @@ def RunTest():
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from interpret.glassbox import ExplainableBoostingClassifier
+from io import StringIO
 
 def RunTest():
-    df = pd.read_csv(
-        ""https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data"",
-        header=None)
+    csv = StringIO(""39, State-gov, 77516, Bachelors, 13, Never-married, Adm-clerical, Not-in-family, White, Male, 2174, 0, 40, United-States, <=50K\n""
+        + ""50, Self-emp-not-inc, 83311, Bachelors, 13, Married-civ-spouse, Exec-managerial, Husband, White, Male, 0, 0, 13, United-States, <=50K\n""
+        + ""38, Private, 215646, HS-grad, 9, Divorced, Handlers-cleaners, Not-in-family, White, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""53, Private, 234721, 11th, 7, Married-civ-spouse, Handlers-cleaners, Husband, Black, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""28, Private, 338409, Bachelors, 13, Married-civ-spouse, Prof-specialty, Wife, Black, Female, 0, 0, 40, Cuba, <=50K\n""
+        + ""37, Private, 284582, Masters, 14, Married-civ-spouse, Exec-managerial, Wife, White, Female, 0, 0, 40, United-States, <=50K\n""
+        + ""49, Private, 160187, 9th, 5, Married-spouse-absent, Other-service, Not-in-family, Black, Female, 0, 0, 16, Jamaica, <=50K\n""
+        + ""52, Self-emp-not-inc, 209642, HS-grad, 9, Married-civ-spouse, Exec-managerial, Husband, White, Male, 0, 0, 45, United-States, >50K\n""
+        + ""31, Private, 45781, Masters, 14, Never-married, Prof-specialty, Not-in-family, White, Female, 14084, 0, 50, United-States, >50K\n""
+        + ""42, Private, 159449, Bachelors, 13, Married-civ-spouse, Exec-managerial, Husband, White, Male, 5178, 0, 40, United-States, >50K\n""
+        + ""37, Private, 280464, Some-college, 10, Married-civ-spouse, Exec-managerial, Husband, Black, Male, 0, 0, 80, United-States, >50K\n""
+        + ""30, State-gov, 141297, Bachelors, 13, Married-civ-spouse, Prof-specialty, Husband, Asian-Pac-Islander, Male, 0, 0, 40, India, >50K\n""
+        + ""23, Private, 122272, Bachelors, 13, Never-married, Adm-clerical, Own-child, White, Female, 0, 0, 30, United-States, <=50K\n""
+        + ""32, Private, 205019, Assoc-acdm, 12, Never-married, Sales, Not-in-family, Black, Male, 0, 0, 50, United-States, <=50K\n""
+        + ""40, Private, 121772, Assoc-voc, 11, Married-civ-spouse, Craft-repair, Husband, Asian-Pac-Islander, Male, 0, 0, 40, ?, >50K\n""
+        + ""34, Private, 245487, 7th-8th, 4, Married-civ-spouse, Transport-moving, Husband, Amer-Indian-Eskimo, Male, 0, 0, 45, Mexico, <=50K\n""
+        + ""25, Self-emp-not-inc, 176756, HS-grad, 9, Never-married, Farming-fishing, Own-child, White, Male, 0, 0, 35, United-States, <=50K\n""
+        + ""32, Private, 186824, HS-grad, 9, Never-married, Machine-op-inspct, Unmarried, White, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""38, Private, 28887, 11th, 7, Married-civ-spouse, Sales, Husband, White, Male, 0, 0, 50, United-States, <=50K\n""
+        + ""43, Self-emp-not-inc, 292175, Masters, 14, Divorced, Exec-managerial, Unmarried, White, Female, 0, 0, 45, United-States, >50K\n""
+        + ""40, Private, 193524, Doctorate, 16, Married-civ-spouse, Prof-specialty, Husband, White, Male, 0, 0, 60, United-States, >50K\n""
+        + ""54, Private, 302146, HS-grad, 9, Separated, Other-service, Unmarried, Black, Female, 0, 0, 20, United-States, <=50K\n""
+        + ""35, Federal-gov, 76845, 9th, 5, Married-civ-spouse, Farming-fishing, Husband, Black, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""43, Private, 117037, 11th, 7, Married-civ-spouse, Transport-moving, Husband, White, Male, 0, 2042, 40, United-States, <=50K\n""
+        + ""59, Private, 109015, HS-grad, 9, Divorced, Tech-support, Unmarried, White, Female, 0, 0, 40, United-States, <=50K\n""
+        + ""56, Local-gov, 216851, Bachelors, 13, Married-civ-spouse, Tech-support, Husband, White, Male, 0, 0, 40, United-States, >50K\n""
+        + ""19, Private, 168294, HS-grad, 9, Never-married, Craft-repair, Own-child, White, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""54, ?, 180211, Some-college, 10, Married-civ-spouse, ?, Husband, Asian-Pac-Islander, Male, 0, 0, 60, South, >50K\n""
+        + ""39, Private, 367260, HS-grad, 9, Divorced, Exec-managerial, Not-in-family, White, Male, 0, 0, 80, United-States, <=50K\n""
+        + ""49, Private, 193366, HS-grad, 9, Married-civ-spouse, Craft-repair, Husband, White, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""23, Local-gov, 190709, Assoc-acdm, 12, Never-married, Protective-serv, Not-in-family, White, Male, 0, 0, 52, United-States, <=50K\n""
+        + ""20, Private, 266015, Some-college, 10, Never-married, Sales, Own-child, Black, Male, 0, 0, 44, United-States, <=50K\n""
+        + ""45, Private, 386940, Bachelors, 13, Divorced, Exec-managerial, Own-child, White, Male, 0, 1408, 40, United-States, <=50K\n""
+        + ""30, Federal-gov, 59951, Some-college, 10, Married-civ-spouse, Adm-clerical, Own-child, White, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""22, State-gov, 311512, Some-college, 10, Married-civ-spouse, Other-service, Husband, Black, Male, 0, 0, 15, United-States, <=50K\n""
+        + ""48, Private, 242406, 11th, 7, Never-married, Machine-op-inspct, Unmarried, White, Male, 0, 0, 40, Puerto-Rico, <=50K\n""
+        + ""21, Private, 197200, Some-college, 10, Never-married, Machine-op-inspct, Own-child, White, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""19, Private, 544091, HS-grad, 9, Married-AF-spouse, Adm-clerical, Wife, White, Female, 0, 0, 25, United-States, <=50K\n""
+        + ""31, Private, 84154, Some-college, 10, Married-civ-spouse, Sales, Husband, White, Male, 0, 0, 38, ?, >50K\n""
+        + ""48, Self-emp-not-inc, 265477, Assoc-acdm, 12, Married-civ-spouse, Prof-specialty, Husband, White, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""31, Private, 507875, 9th, 5, Married-civ-spouse, Machine-op-inspct, Husband, White, Male, 0, 0, 43, United-States, <=50K\n""
+        + ""53, Self-emp-not-inc, 88506, Bachelors, 13, Married-civ-spouse, Prof-specialty, Husband, White, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""24, Private, 172987, Bachelors, 13, Married-civ-spouse, Tech-support, Husband, White, Male, 0, 0, 50, United-States, <=50K\n""
+        + ""49, Private, 94638, HS-grad, 9, Separated, Adm-clerical, Unmarried, White, Female, 0, 0, 40, United-States, <=50K\n""
+        + ""25, Private, 289980, HS-grad, 9, Never-married, Handlers-cleaners, Not-in-family, White, Male, 0, 0, 35, United-States, <=50K\n""
+        + ""57, Federal-gov, 337895, Bachelors, 13, Married-civ-spouse, Prof-specialty, Husband, Black, Male, 0, 0, 40, United-States, >50K\n""
+        + ""53, Private, 144361, HS-grad, 9, Married-civ-spouse, Machine-op-inspct, Husband, White, Male, 0, 0, 38, United-States, <=50K\n""
+        + ""44, Private, 128354, Masters, 14, Divorced, Exec-managerial, Unmarried, White, Female, 0, 0, 40, United-States, <=50K\n""
+        + ""41, State-gov, 101603, Assoc-voc, 11, Married-civ-spouse, Craft-repair, Husband, White, Male, 0, 0, 40, United-States, <=50K\n""
+        + ""29, Private, 271466, Assoc-voc, 11, Never-married, Prof-specialty, Not-in-family, White, Male, 0, 0, 43, United-States, <=50K"")
+
+    df = pd.read_csv(csv, header=None)
     df.columns = [
         ""Age"", ""WorkClass"", ""fnlwgt"", ""Education"", ""EducationNum"",
         ""MaritalStatus"", ""Occupation"", ""Relationship"", ""Race"", ""Gender"",
@@ -1904,14 +1993,13 @@ def RunTest():
             );
         }
 
-        [Test, Explicit("Installed in specific environment. Requires older dependencies")]
+        [Test]
         public void Tigramite()
         {
-            PythonInitializer.ActivatePythonVirtualEnvironment("/Foundation-Pomegranate");
             AssertCode(@"
 import numpy as np
 from tigramite.pcmci import PCMCI
-from tigramite.independence_tests import ParCorr
+from tigramite.independence_tests.parcorr import ParCorr
 import tigramite.data_processing as pp
 from tigramite.toymodels import structural_causal_processes as toys
 
@@ -1941,6 +2029,7 @@ def RunTest():
         [Test, Explicit("Sometimes crashes when run along side the other tests")]
         public void NBeatsTest()
         {
+            PythonInitializer.ActivatePythonVirtualEnvironment("/Foundation-Pomegranate");
             AssertCode(@"
 import warnings
 import numpy as np
@@ -2070,36 +2159,38 @@ def RunTest():
         /// <param name="module">The module we are testing</param>
         /// <param name="version">The module version</param>
         [TestCase("pulp", "2.7.0", "VERSION")]
-        [TestCase("pymc", "5.0.2", "__version__")]
+        [TestCase("pymc", "5.5.0", "__version__")]
         [TestCase("pypfopt", "pypfopt", "__name__")]
         [TestCase("wrapt", "1.14.1", "__version__")]
         [TestCase("tslearn", "0.5.3.2", "__version__")]
-        [TestCase("tweepy", "4.10.0", "__version__")]
+        [TestCase("tweepy", "4.14.0", "__version__")]
         [TestCase("pywt", "1.4.1", "__version__")]
         [TestCase("umap", "0.5.3", "__version__")]
         [TestCase("dtw", "1.3.0", "__version__")]
         [TestCase("mplfinance", "0.12.9b7", "__version__")]
         [TestCase("cufflinks", "0.17.3", "__version__")]
-        [TestCase("ipywidgets", "8.0.4", "__version__")]
-        [TestCase("astropy", "5.2.1", "__version__")]
-        [TestCase("gluonts", "0.12.3", "__version__")]
+        [TestCase("ipywidgets", "8.0.6", "__version__")]
+        [TestCase("astropy", "5.2.2", "__version__")]
+        [TestCase("gluonts", "0.13.2", "__version__")]
         [TestCase("gplearn", "0.4.2", "__version__")]
-        [TestCase("h2o", "3.40.0.1", "__version__")]
-        [TestCase("featuretools", "0.23.1", "__version__")]
-        [TestCase("pennylane", "0.29.0", "version()")]
+        [TestCase("h2o", "3.40.0.4", "__version__")]
+        [TestCase("featuretools", "1.26.0", "__version__")]
+        [TestCase("pennylane", "0.30.0", "version()")]
         [TestCase("pyfolio", "0.9.2", "__version__")]
-        [TestCase("altair", "4.2.2", "__version__")]
-        [TestCase("modin", "0.18.1", "__version__")]
+        [TestCase("altair", "5.0.1", "__version__")]
+        [TestCase("modin", "0.22.2", "__version__")]
         [TestCase("persim", "0.3.1", "__version__")]
-        [TestCase("pydmd", "0.4.0.post2301", "__version__")]
+        [TestCase("pydmd", "0.4.1.post2306", "__version__")]
         [TestCase("pandas_ta", "0.3.14b0", "__version__")]
         [TestCase("finrl", "finrl", "__package__")]
         [TestCase("tensortrade", "1.0.3", "__version__")]
-        [TestCase("quantstats", "0.0.59", "__version__")]
+        [TestCase("quantstats", "0.0.61", "__version__")]
         [TestCase("autokeras", "1.1.0", "__version__")]
-        [TestCase("panel", "0.14.3", "__version__")]
+        [TestCase("panel", "1.1.1", "__version__")]
         [TestCase("pyheat", "pyheat", "__name__")]
-        [TestCase("tensorflow_decision_forests", "1.2.0", "__version__")]
+        [TestCase("tensorflow_decision_forests", "1.3.0", "__version__")]
+        [TestCase("tensorflow_ranking", "0.5.1.dev", "__version__")]
+        [TestCase("pomegranate", "1.0.0", "__version__")]
         public void ModuleVersionTest(string module, string value, string attribute)
         {
             AssertCode(

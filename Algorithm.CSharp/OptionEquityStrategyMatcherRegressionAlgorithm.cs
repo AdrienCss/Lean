@@ -82,7 +82,8 @@ namespace QuantConnect.Algorithm.CSharp
 
                     AssertOptionStrategyIsPresent(OptionStrategyDefinitions.ButterflyCall.Name, 10);
                     AssertDefaultGroup(_optionSymbol.Underlying, 490);
-                    AssertDefaultGroup(lowerCall.Symbol, 5);
+                    // naked call for the lowerCall contract
+                    AssertOptionStrategyIsPresent(OptionStrategyDefinitions.NakedCall.Name, 5);
 
                     MarketOrder(middleCall.Symbol, -5);
                     freeMarginPostTrade = Portfolio.MarginRemaining;
@@ -91,7 +92,8 @@ namespace QuantConnect.Algorithm.CSharp
                     AssertOptionStrategyIsPresent(OptionStrategyDefinitions.CoveredCall.Name, 4);
                     AssertOptionStrategyIsPresent(OptionStrategyDefinitions.BullCallSpread.Name, 1);
                     AssertDefaultGroup(_optionSymbol.Underlying, 90);
-                    AssertDefaultGroup(lowerCall.Symbol, 4);
+                    // naked call for the lowerCall contract
+                    AssertOptionStrategyIsPresent(OptionStrategyDefinitions.NakedCall.Name, 4);
 
                     // trade some other asset
                     MarketOrder("SPY", 200);
@@ -101,7 +103,8 @@ namespace QuantConnect.Algorithm.CSharp
                     AssertOptionStrategyIsPresent(OptionStrategyDefinitions.CoveredCall.Name, 4);
                     AssertOptionStrategyIsPresent(OptionStrategyDefinitions.BullCallSpread.Name, 1);
                     AssertDefaultGroup(_optionSymbol.Underlying, 90);
-                    AssertDefaultGroup(lowerCall.Symbol, 4);
+                    // naked call for the lowerCall contract
+                    AssertOptionStrategyIsPresent(OptionStrategyDefinitions.NakedCall.Name, 4);
                 }
             }
         }
@@ -141,7 +144,7 @@ namespace QuantConnect.Algorithm.CSharp
             {"Tracking Error", "0"},
             {"Treynor Ratio", "0"},
             {"Total Fees", "$16.95"},
-            {"Estimated Strategy Capacity", "$1000.00"},
+            {"Estimated Strategy Capacity", "$2000.00"},
             {"Lowest Capacity Asset", "GOOCV W78ZFM61MKLI|GOOCV VP83T1ZUHROL"},
             {"Portfolio Turnover", "280.07%"},
             {"OrderListHash", "822127363a9d980d4d71c3c45723f13a"}

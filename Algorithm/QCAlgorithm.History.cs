@@ -29,6 +29,8 @@ namespace QuantConnect.Algorithm
 {
     public partial class QCAlgorithm
     {
+        private bool _dataDictionaryTickWarningSent;
+
         /// <summary>
         /// Gets or sets the history provider for the algorithm
         /// </summary>
@@ -190,7 +192,7 @@ namespace QuantConnect.Algorithm
                 // what the start date should be used. Defaulting to always open
                 result = Time - _warmupBarCount.Value * defaultResolutionToUse.ToTimeSpan();
 
-                foreach (var universe in _pendingUniverseAdditions.Concat(UniverseManager.Values))
+                foreach (var universe in UniverseManager.Values)
                 {
                     var config = universe.Configuration;
                     var resolution = universe.Configuration.Resolution;
@@ -790,6 +792,11 @@ namespace QuantConnect.Algorithm
             }
             else
             {
+                if (typeof(T) == typeof(Tick) && !_dataDictionaryTickWarningSent)
+                {
+                    _dataDictionaryTickWarningSent = true;
+                    Debug("Warning: Multiple symbols Tick history will return the last tick per timestep. To access all ticks remove the 'Tick' type to use the History() returning Slice, all ticks can be accessed with Slice.Ticks.");
+                }
                 result = slices.Get<T>();
             }
 

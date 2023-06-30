@@ -172,7 +172,8 @@ namespace QuantConnect.Brokerages
             {
                 Quantity = (int?) (ticket.Quantity/splitFactor),
                 LimitPrice = ticket.OrderType.IsLimitOrder() ? ticket.Get(OrderField.LimitPrice)*splitFactor : (decimal?) null,
-                StopPrice = ticket.OrderType.IsStopOrder() ? ticket.Get(OrderField.StopPrice)*splitFactor : (decimal?) null
+                StopPrice = ticket.OrderType.IsStopOrder() ? ticket.Get(OrderField.StopPrice)*splitFactor : (decimal?) null,
+                TriggerPrice = ticket.OrderType == OrderType.LimitIfTouched ? ticket.Get(OrderField.TriggerPrice) * splitFactor : (decimal?) null
             }));
         }
 
@@ -331,6 +332,11 @@ namespace QuantConnect.Brokerages
                     case SecurityType.Option:
                         return new DelayedSettlementModel(Option.DefaultSettlementDays, Option.DefaultSettlementTime);
                 }
+            }
+
+            if(security.Symbol.SecurityType == SecurityType.Future)
+            {
+                return new FutureSettlementModel();
             }
 
             return new ImmediateSettlementModel();

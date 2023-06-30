@@ -61,6 +61,7 @@ namespace QuantConnect.Tests.Engine.Setup
             _brokerage = new TestBrokerage();
 
             _brokerageSetupHandler = new TestableBrokerageSetupHandler();
+            _transactionHandler.Initialize(_algorithm, _brokerage, _resultHandler);
         }
 
         [OneTimeTearDown]
@@ -407,7 +408,7 @@ namespace QuantConnect.Tests.Engine.Setup
                 transactionHandler.Object, realTimeHandler.Object, objectStore.Object, TestGlobals.DataCacheProvider, TestGlobals.MapFileProvider)));
 
             // let's assert be detect the covered call option strategy for existing position correctly
-            if (algorithm.Portfolio.PositionGroups.Where(group => group.BuyingPowerModel is OptionStrategyPositionGroupBuyingPowerModel)
+            if (algorithm.Portfolio.Positions.Groups.Where(group => group.BuyingPowerModel is OptionStrategyPositionGroupBuyingPowerModel)
                 .Count(group => ((OptionStrategyPositionGroupBuyingPowerModel)@group.BuyingPowerModel).ToString() == OptionStrategyDefinitions.CoveredCall.Name
                     && (Math.Abs(group.Quantity) == 1)) != 1)
             {

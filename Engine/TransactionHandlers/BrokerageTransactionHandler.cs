@@ -26,7 +26,6 @@ using QuantConnect.Orders;
 using QuantConnect.Orders.Fees;
 using QuantConnect.Securities;
 using QuantConnect.Securities.Option;
-using QuantConnect.Securities.Positions;
 using QuantConnect.Util;
 
 namespace QuantConnect.Lean.Engine.TransactionHandlers
@@ -172,6 +171,11 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
             _brokerage.OptionNotification += (sender, e) =>
             {
                 HandleOptionNotification(e);
+            };
+
+            _brokerage.NewBrokerageOrderNotification += (sender, e) =>
+            {
+                AddOpenOrder(e.Order, _algorithm);
             };
 
             _brokerage.DelistingNotification += (sender, e) =>
@@ -663,12 +667,18 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
         /// <summary>
         /// Register an already open Order
         /// </summary>
-        public void AddOpenOrder(Order order, OrderTicket orderTicket)
+        public void AddOpenOrder(Order order, IAlgorithm algorithm)
         {
+            order.Id = algorithm.Transactions.GetIncrementOrderId();
+
+            var orderTicket = order.ToOrderTicket(algorithm.Transactions);
+
             _openOrders.AddOrUpdate(order.Id, order, (i, o) => order);
             _completeOrders.AddOrUpdate(order.Id, order, (i, o) => order);
             _openOrderTickets.AddOrUpdate(order.Id, orderTicket);
             _completeOrderTickets.AddOrUpdate(order.Id, orderTicket);
+
+            Interlocked.Increment(ref _totalOrderCount);
         }
 
 
@@ -782,10 +792,7 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
             HasSufficientBuyingPowerForOrderResult hasSufficientBuyingPowerResult;
             try
             {
-                var group = _algorithm.Portfolio.Positions.CreatePositionGroup(orders);
-                hasSufficientBuyingPowerResult = group.BuyingPowerModel.HasSufficientBuyingPowerForOrder(
-                    _algorithm.Portfolio, group, orders
-                );
+                hasSufficientBuyingPowerResult = _algorithm.Portfolio.HasSufficientBuyingPowerForOrder(orders);
             }
             catch (Exception err)
             {
@@ -1001,7 +1008,6 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
             {
                 // Get orders and tickets
                 var orders = new List<Order>(orderEvents.Count);
-                var tickets = new List<OrderTicket>(orderEvents.Count);
 
                 for (var i = 0; i < orderEvents.Count; i++)
                 {
@@ -1029,7 +1035,7 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
                         LogOrderEvent(orderEvent);
                         return;
                     }
-                    tickets.Add(ticket);
+                    orderEvent.Ticket = ticket;
                 }
 
                 var fillsToProcess = new List<OrderEvent>(orderEvents.Count);
@@ -1039,7 +1045,7 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
                 {
                     var orderEvent = orderEvents[i];
                     var order = orders[i];
-                    var ticket = tickets[i];
+                    var ticket = orderEvent.Ticket;
 
                     _cancelPendingOrders.UpdateOrRemove(order.Id, orderEvent.Status);
                     // set the status of our order object based on the fill event
@@ -1178,7 +1184,7 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
                     }
 
                     // update the ticket after we've processed the fill, but before the event, this way everything is ready for user code
-                    tickets[i].AddOrderEvent(orderEvent);
+                    orderEvent.Ticket.AddOrderEvent(orderEvent);
                 }
             }
 
@@ -1237,10 +1243,10 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
         private void HandleAccountChanged(AccountEvent account)
         {
             // how close are we?
-            var delta = _algorithm.Portfolio.CashBook[account.CurrencySymbol].Amount - account.CashBalance;
-            if (delta != 0)
+            var existingCashBalance = _algorithm.Portfolio.CashBook[account.CurrencySymbol].Amount;
+            if (existingCashBalance != account.CashBalance)
             {
-                Log.Trace($"BrokerageTransactionHandler.HandleAccountChanged(): {account.CurrencySymbol} Cash Delta: {delta}");
+                Log.Trace($"BrokerageTransactionHandler.HandleAccountChanged(): {account.CurrencySymbol} Cash Lean: {existingCashBalance} Brokerage: {account.CashBalance}. Will update: {_brokerage.AccountInstantlyUpdated}");
             }
 
             // maybe we don't actually want to do this, this data can be delayed. Must be explicitly supported by brokerage
@@ -1299,7 +1305,7 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
 
                     // Create our order and add it
                     var order = new MarketOrder(security.Symbol, quantity, _algorithm.UtcTime, tag);
-                    AddBrokerageOrder(order);
+                    AddOpenOrder(order, _algorithm);
 
                     // Create our fill with the latest price
                     var fill = new OrderEvent(order, _algorithm.UtcTime, OrderFee.Zero)
@@ -1421,21 +1427,8 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
         {
             // generate new exercise order and ticket for the option
             var order = new OptionExerciseOrder(security.Symbol, quantity, CurrentTimeUtc);
-            AddBrokerageOrder(order);
+            AddOpenOrder(order, _algorithm);
             return order;
-        }
-
-        /// <summary>
-        /// Helper to process internally created orders for delistings/exercise orders
-        /// </summary>
-        /// <param name="order">order to </param>
-        private void AddBrokerageOrder(Order order)
-        {
-            order.Id = _algorithm.Transactions.GetIncrementOrderId();
-
-            var ticket = order.ToOrderTicket(_algorithm.Transactions);
-            AddOpenOrder(order, ticket);
-            Interlocked.Increment(ref _totalOrderCount);
         }
 
         private void EmitOptionNotificationEvents(Security security, OptionExerciseOrder order)

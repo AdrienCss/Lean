@@ -63,6 +63,12 @@ namespace QuantConnect
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static string InvalidOrderSize(Securities.Security security, decimal quantity, decimal price)
+            {
+                return Invariant($@"The minimum order size (in quote currency) for {security.Symbol.Value} is {security.SymbolProperties.MinimumOrderSize}. Order size was {quantity * price}.");
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static string UnsupportedOrderType(IBrokerageModel brokerageModel, Orders.Order order, IEnumerable<OrderType> supportedOrderTypes)
             {
                 return Invariant($"The {brokerageModel.GetType().Name} does not support {order.Type} order type. Only supports [{string.Join(',', supportedOrderTypes)}]");
@@ -278,6 +284,12 @@ namespace QuantConnect
             public static string OrderQuantityUpdateNotSupported = "Tradier does not support updating order quantities.";
 
             public static string OpenOrdersCancelOnReverseSplitSymbols = "Tradier Brokerage cancels open orders on reverse split symbols";
+
+            public static string ShortOrderIsGtc = "You cannot place short stock orders with GTC, only day orders are allowed";
+
+            public static string SellShortOrderLastPriceBelow5 = "Sell Short order cannot be placed for stock priced below $5";
+
+            public static string IncorrectOrderQuantity = "Quantity should be between 1 and 10,000,000";
         }
 
         /// <summary>

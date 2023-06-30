@@ -55,12 +55,8 @@ namespace QuantConnect.Algorithm.CSharp
                     var freeMarginPostTrade = Portfolio.MarginRemaining;
                     AssertOptionStrategyIsPresent(OptionStrategyDefinitions.Strangle.Name, 10);
 
-                    var initialMarginRequiredPut = Securities[oufOfTheMoneyPut.Symbol].BuyingPowerModel.GetInitialMarginRequirement(
-                        new InitialMarginParameters(Securities[oufOfTheMoneyPut.Symbol], 10));
-                    var initialMarginRequiredCall = Securities[oufOfTheMoneyCall.Symbol].BuyingPowerModel.GetInitialMarginRequirement(
-                        new InitialMarginParameters(Securities[oufOfTheMoneyCall.Symbol], 10));
-
-                    var expectedMarginUsage = initialMarginRequiredPut + initialMarginRequiredCall;
+                    // Long strangles have no margin requirement
+                    var expectedMarginUsage = 0m;
                     if (expectedMarginUsage != Portfolio.TotalMarginUsed)
                     {
                         throw new Exception("Unexpect margin used!");
@@ -111,7 +107,7 @@ namespace QuantConnect.Algorithm.CSharp
             {"Tracking Error", "0"},
             {"Treynor Ratio", "0"},
             {"Total Fees", "$5.00"},
-            {"Estimated Strategy Capacity", "$800000.00"},
+            {"Estimated Strategy Capacity", "$250000.00"},
             {"Lowest Capacity Asset", "GOOCV W78ZFMML01JA|GOOCV VP83T1ZUHROL"},
             {"Portfolio Turnover", "13.13%"},
             {"OrderListHash", "993aa6c5921c90f7528014884c8bd9f5"}

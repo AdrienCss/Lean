@@ -65,6 +65,7 @@ namespace QuantConnect
     /// </summary>
     public static class Extensions
     {
+        private static readonly Regex LeanPathRegex = new Regex("(?:\\S*?\\\\Lean\\\\)|(?:\\S*?/Lean/)", RegexOptions.Compiled);
         private static readonly Dictionary<string, bool> _emptyDirectories = new ();
         private static readonly HashSet<string> InvalidSecurityTypes = new HashSet<string>();
         private static readonly Regex DateCheck = new Regex(@"\d{8}", RegexOptions.Compiled);
@@ -107,22 +108,13 @@ namespace QuantConnect
         }
 
         /// <summary>
-        /// Tries to fetch the custom data type associated with a symbol
+        /// Helper method to clear undesired paths from stack traces
         /// </summary>
-        /// <remarks>Custom data type <see cref="SecurityIdentifier"/> symbol value holds their data type</remarks>
-        public static bool TryGetCustomDataType(this string symbol, out string type)
+        /// <param name="error">The error to cleanup</param>
+        /// <returns>The sanitized error</returns>
+        public static string ClearLeanPaths(string error)
         {
-            type = null;
-            if (symbol != null)
-            {
-                var index = symbol.LastIndexOf('.');
-                if (index != -1 && symbol.Length > index + 1)
-                {
-                    type = symbol.Substring(index + 1);
-                    return true;
-                }
-            }
-            return false;
+            return LeanPathRegex.Replace(error, string.Empty);
         }
 
         /// <summary>
@@ -177,7 +169,7 @@ namespace QuantConnect
                     var type = dataTypes.Single();
                     var baseInstance = type.GetBaseDataInstance();
                     baseInstance.Symbol = symbol;
-                    symbol.ID.Symbol.TryGetCustomDataType(out var customType);
+                    SecurityIdentifier.TryGetCustomDataType(symbol.ID.Symbol, out var customType);
                     // for custom types we will add an entry for that type
                     entry = marketHoursDatabase.SetEntryAlwaysOpen(symbol.ID.Market, customType != null ? $"TYPE.{customType}" : null, SecurityType.Base, baseInstance.DataTimeZone());
                 }
@@ -2811,17 +2803,28 @@ namespace QuantConnect
         {
             using (Py.GIL())
             {
-                var pyList = new PyList();
-                foreach (var item in enumerable)
-                {
-                    using (var pyObject = item.ToPython())
-                    {
-                        pyList.Append(pyObject);
-                    }
-                }
-
-                return pyList;
+                return enumerable.ToPyListUnSafe();
             }
+        }
+
+        /// <summary>
+        /// Converts an IEnumerable to a PyList
+        /// </summary>
+        /// <param name="enumerable">IEnumerable object to convert</param>
+        /// <remarks>Requires the caller to own the GIL</remarks>
+        /// <returns>PyList</returns>
+        public static PyList ToPyListUnSafe(this IEnumerable enumerable)
+        {
+            var pyList = new PyList();
+            foreach (var item in enumerable)
+            {
+                using (var pyObject = item.ToPython())
+                {
+                    pyList.Append(pyObject);
+                }
+            }
+
+            return pyList;
         }
 
         /// <summary>
@@ -3052,7 +3055,7 @@ namespace QuantConnect
         public static bool IsCustomDataType<T>(this Symbol symbol)
         {
             return symbol.SecurityType == SecurityType.Base
-                && symbol.ID.Symbol.TryGetCustomDataType(out var type)
+                && SecurityIdentifier.TryGetCustomDataType(symbol.ID.Symbol, out var type)
                 && type.Equals(typeof(T).Name, StringComparison.InvariantCultureIgnoreCase);
         }
 
@@ -3478,63 +3481,98 @@ namespace QuantConnect
         /// <param name="filter">The option filter to use</param>
         /// <param name="universeSettings">The universe settings, will use algorithm settings if null</param>
         /// <returns><see cref="OptionChainUniverse"/> for the given symbol</returns>
+        public static OptionChainUniverse CreateOptionChain(this IAlgorithm algorithm, Symbol symbol, PyObject filter, UniverseSettings universeSettings = null)
+        {
+            var result = CreateOptionChain(algorithm, symbol, out var option, universeSettings);
+            option.SetFilter(filter);
+            return result;
+        }
+
+        /// <summary>
+        /// Creates a <see cref="OptionChainUniverse"/> for a given symbol
+        /// </summary>
+        /// <param name="algorithm">The algorithm instance to create universes for</param>
+        /// <param name="symbol">Symbol of the option</param>
+        /// <param name="filter">The option filter to use</param>
+        /// <param name="universeSettings">The universe settings, will use algorithm settings if null</param>
+        /// <returns><see cref="OptionChainUniverse"/> for the given symbol</returns>
         public static OptionChainUniverse CreateOptionChain(this IAlgorithm algorithm, Symbol symbol, Func<OptionFilterUniverse, OptionFilterUniverse> filter, UniverseSettings universeSettings = null)
+        {
+            var result = CreateOptionChain(algorithm, symbol, out var option, universeSettings);
+            option.SetFilter(filter);
+            return result;
+        }
+
+        /// <summary>
+        /// Creates a <see cref="OptionChainUniverse"/> for a given symbol
+        /// </summary>
+        /// <param name="algorithm">The algorithm instance to create universes for</param>
+        /// <param name="symbol">Symbol of the option</param>
+        /// <param name="universeSettings">The universe settings, will use algorithm settings if null</param>
+        /// <returns><see cref="OptionChainUniverse"/> for the given symbol</returns>
+        private static OptionChainUniverse CreateOptionChain(this IAlgorithm algorithm, Symbol symbol, out Option option, UniverseSettings universeSettings = null)
         {
             if (!symbol.SecurityType.IsOption())
             {
                 throw new ArgumentException(Messages.Extensions.CreateOptionChainRequiresOptionSymbol);
             }
 
-            // rewrite non-canonical symbols to be canonical
-            var market = symbol.ID.Market;
-            var underlying = symbol.Underlying;
-            if (!symbol.IsCanonical())
-            {
-                // The underlying can be a non-equity Symbol, so we must explicitly
-                // initialize the Symbol using the CreateOption(Symbol, ...) overload
-                // to ensure that the underlying SecurityType is preserved and not
-                // written as SecurityType.Equity.
-                var alias = $"?{underlying.Value}";
+            // resolve defaults if not specified
+            var settings = universeSettings ?? algorithm.UniverseSettings;
 
-                symbol = Symbol.CreateOption(
-                    underlying,
-                    market,
-                    underlying.SecurityType.DefaultOptionStyle(),
-                    default(OptionRight),
-                    0m,
-                    SecurityIdentifier.DefaultDate,
-                    alias);
+            option = (Option)algorithm.AddSecurity(symbol.Canonical, settings.Resolution, settings.FillForward, settings.Leverage, settings.ExtendedMarketHours);
+
+            return (OptionChainUniverse)algorithm.UniverseManager.Values.Single(universe => universe.Configuration.Symbol == symbol.Canonical);
+        }
+
+        /// <summary>
+        /// Creates a <see cref="FuturesChainUniverse"/> for a given symbol
+        /// </summary>
+        /// <param name="algorithm">The algorithm instance to create universes for</param>
+        /// <param name="symbol">Symbol of the future</param>
+        /// <param name="filter">The future filter to use</param>
+        /// <param name="universeSettings">The universe settings, will use algorithm settings if null</param>
+        public static IEnumerable<Universe> CreateFutureChain(this IAlgorithm algorithm, Symbol symbol, PyObject filter, UniverseSettings universeSettings = null)
+        {
+            var result = CreateFutureChain(algorithm, symbol, out var future, universeSettings);
+            future.SetFilter(filter);
+            return result;
+        }
+
+        /// <summary>
+        /// Creates a <see cref="FuturesChainUniverse"/> for a given symbol
+        /// </summary>
+        /// <param name="algorithm">The algorithm instance to create universes for</param>
+        /// <param name="symbol">Symbol of the future</param>
+        /// <param name="filter">The future filter to use</param>
+        /// <param name="universeSettings">The universe settings, will use algorithm settings if null</param>
+        public static IEnumerable<Universe> CreateFutureChain(this IAlgorithm algorithm, Symbol symbol, Func<FutureFilterUniverse, FutureFilterUniverse> filter, UniverseSettings universeSettings = null)
+        {
+            var result = CreateFutureChain(algorithm, symbol, out var future, universeSettings);
+            future.SetFilter(filter);
+            return result;
+        }
+
+        /// <summary>
+        /// Creates a <see cref="FuturesChainUniverse"/> for a given symbol
+        /// </summary>
+        private static IEnumerable<Universe> CreateFutureChain(this IAlgorithm algorithm, Symbol symbol, out Future future, UniverseSettings universeSettings = null)
+        {
+            if (symbol.SecurityType != SecurityType.Future)
+            {
+                throw new ArgumentException(Messages.Extensions.CreateFutureChainRequiresFutureSymbol);
             }
 
             // resolve defaults if not specified
             var settings = universeSettings ?? algorithm.UniverseSettings;
 
-            // create canonical security object, but don't duplicate if it already exists
-            Security security;
-            Option optionChain;
-            if (!algorithm.Securities.TryGetValue(symbol, out security))
-            {
-                var config = algorithm.SubscriptionManager.SubscriptionDataConfigService.Add(
-                    typeof(ZipEntryName),
-                    symbol,
-                    settings.Resolution,
-                    settings.FillForward,
-                    settings.ExtendedMarketHours,
-                    false);
-                optionChain = (Option)algorithm.Securities.CreateSecurity(symbol, config, settings.Leverage, false);
-            }
-            else
-            {
-                optionChain = (Option)security;
-            }
+            var dataNormalizationMode = settings.GetUniverseNormalizationModeOrDefault(symbol.SecurityType);
 
-            // set the option chain contract filter function
-            optionChain.SetFilter(filter);
+            future = (Future)algorithm.AddSecurity(symbol.Canonical, settings.Resolution, settings.FillForward, settings.Leverage, settings.ExtendedMarketHours,
+                settings.DataMappingMode, dataNormalizationMode, settings.ContractDepthOffset);
 
-            // force option chain security to not be directly tradable AFTER it's configured to ensure it's not overwritten
-            optionChain.IsTradable = false;
-
-            return new OptionChainUniverse(optionChain, settings);
+            // let's yield back both the future chain and the continuous future universe
+            return algorithm.UniverseManager.Values.Where(universe => universe.Configuration.Symbol == symbol.Canonical || ContinuousContractUniverse.CreateSymbol(symbol.Canonical) == universe.Configuration.Symbol);
         }
 
         /// <summary>

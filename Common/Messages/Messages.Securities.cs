@@ -15,11 +15,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 
 using QuantConnect.Data;
 using QuantConnect.Securities;
+using QuantConnect.Securities.Positions;
 
 using static QuantConnect.StringExtensions;
 
@@ -76,6 +78,13 @@ namespace QuantConnect
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static string TargetOrderMarginNotAboveMinimum()
+            {
+                return "Warning: Portfolio rebalance result ignored as it resulted in a single share trade recommendation which can generate high fees." +
+                    " To disable minimum order size checks please set Settings.MinimumOrderMarginPortfolioPercentage = 0.";
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static string OrderQuantityLessThanLotSize(Securities.Security security, decimal targetOrderMargin)
             {
                 return Invariant($@"The order quantity is less than the lot size of {
@@ -120,6 +129,34 @@ namespace QuantConnect
         }
 
         /// <summary>
+        /// Provides user-facing messages for the <see cref="Securities.PositionGroupBuyingPowerModel"/> class and its consumers or related classes
+        /// </summary>
+        public static class PositionGroupBuyingPowerModel
+        {
+
+            public static string DeltaCannotBeApplied = "No buying power used, delta cannot be applied";
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static string ComputedZeroInitialMargin(IPositionGroup positionGroup)
+            {
+                return Invariant($"Computed zero initial margin requirement for {positionGroup.GetUserFriendlyName()}.");
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static string PositionGroupQuantityRoundedToZero(decimal targetOrderMargin)
+            {
+                return Invariant($"The position group order quantity has been rounded to zero. Target order margin {targetOrderMargin}.");
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static string FailedToConvergeOnTargetMargin(decimal targetMargin, decimal positionGroupQuantity, decimal orderFees,
+                GetMaximumLotsForTargetBuyingPowerParameters parameters)
+            {
+                return Invariant($@"Failed to converge on the target margin: {targetMargin}; the following information can be used to reproduce the issue. Total Portfolio Cash: {parameters.Portfolio.Cash}; Position group: {parameters.PositionGroup.GetUserFriendlyName()}; Position group order quantity: {positionGroupQuantity} Order Fee: {orderFees}; Current Holdings: {parameters.PositionGroup.Quantity}; Target Percentage: %{parameters.TargetBuyingPower * 100};");
+            }
+        }
+
+        /// <summary>
         /// Provides user-facing messages for the <see cref="Securities.Cash"/> class and its consumers or related classes
         /// </summary>
         public static class Cash
@@ -127,16 +164,17 @@ namespace QuantConnect
             public static string NullOrEmptyCashSymbol = "Cash symbols cannot be null or empty.";
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static string NoTradablePairFoundForCurrencyConversion(string cashCurrencySymbol, string accountCurrency)
+            public static string NoTradablePairFoundForCurrencyConversion(string cashCurrencySymbol, string accountCurrency,
+                IEnumerable<KeyValuePair<SecurityType, string>> marketMap)
             {
                 return Invariant($@"No tradeable pair was found for currency {cashCurrencySymbol}, conversion rate to account currency ({
-                    accountCurrency}) will be set to zero.");
+                    accountCurrency}) will be set to zero. Markets: [{string.Join(",", marketMap.Select(x => $"{x.Key}:{x.Value}"))}]");
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static string AddingSecuritySymbolForCashCurrencyFeed(QuantConnect.Symbol symbol, string cashCurrencySymbol)
             {
-                return Invariant($"Adding {symbol.Value} for cash {cashCurrencySymbol} currency feed");
+                return Invariant($"Adding {symbol.Value} {symbol.ID.Market} for cash {cashCurrencySymbol} currency feed");
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
